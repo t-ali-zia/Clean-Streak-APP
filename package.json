@@ -1,0 +1,8 @@
+{
+  "name": "clean-streak",
+  "version": "1.0.0",
+  "description": "Track how long you've been clean. Every day counts.",
+  "scripts": {
+    "build": "node build.js"
+  }
+}

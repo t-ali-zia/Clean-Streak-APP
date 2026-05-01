@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Clean Streak">
+  <meta name="theme-color" content="#0e0e12">
+  <title>Clean Streak</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; width: 100%; overflow: hidden; background: #0e0e12; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    #root { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+    input, button { font-family: inherit; }
+    input[type="date"] { width: 100%; min-width: 0; display: block; }
+    input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.5; cursor: pointer; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes sheetIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .animate-fadeIn { animation: fadeIn 0.25s ease both; }
+    .animate-sheetIn { animation: sheetIn 0.3s cubic-bezier(0.32, 0.72, 0, 1) both; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="text/babel">
+
+    const { useState, useEffect } = React;
+
+    const SUPABASE_URL  = '__SUPABASE_URL__';
+    const SUPABASE_ANON = '__SUPABASE_ANON_KEY__';
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    function getToday() { const d = new Date(); d.setHours(0,0,0,0); return d; }
+    function daysBetween(d1, d2) { return Math.max(0, Math.floor((d2 - d1) / 86400000)); }
+    function parseDate(str) { const [y,m,d] = str.split('-').map(Number); return new Date(y, m-1, d); }
+    function formatDate(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+    function humanDate(str) { return parseDate(str).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }); }
+
+    const COLOR_POOL = ['#E05252','#5B8EF0','#4DBF7A','#C97BE8','#F5A623','#FF7D6B','#5BC8C8','#F06292'];
+    const MILESTONES = [7, 14, 30, 60, 100, 180, 365];
+
+    const QUOTES = [
+      { text: "Every day you don't go back is a day you move forward.", author: "Unknown" },
+      { text: "You don't have to be great to start, but you have to start to be great.", author: "Zig Ziglar" },
+      { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
+      { text: "Small daily improvements over time lead to stunning results.", author: "Robin Sharma" },
+      { text: "It does not matter how slowly you go as long as you do not stop.", author: "Confucius" },
+      { text: "The pain of discipline is far less than the pain of regret.", author: "Unknown" },
+      { text: "You are not your past. You are the power you have today.", author: "Unknown" },
+      { text: "Each morning we are born again. What we do today is what matters most.", author: "Buddha" },
+      { text: "Progress, not perfection.", author: "Unknown" },
+      { text: "We are what we repeatedly do. Excellence, then, is not an act, but a habit.", author: "Aristotle" },
+      { text: "You've survived 100% of your worst days so far.", author: "Unknown" },
+      { text: "Today is another chance to get it right.", author: "Unknown" },
+      { text: "Strength grows in the moments when you think you can't go on but you keep going anyway.", author: "Unknown" },
+      { text: "The hardest step is the one you take every day — choosing yourself.", author: "Unknown" },
+      { text: "Your body keeps the score. So does your calendar.", author: "Unknown" },
+      { text: "The best project you'll ever work on is yourself.", author: "Unknown" },
+      { text: "Don't stop when you're tired. Stop when you're done.", author: "Unknown" },
+      { text: "You did not come this far to only come this far.", author: "Unknown" },
+      { text: "Consistency is the currency of success.", author: "Unknown" },
+      { text: "You are stronger than your cravings.", author: "Unknown" },
+      { text: "Every streak starts with a single day. Then another.", author: "Unknown" },
+      { text: "One day at a time. That's all we need.", author: "Unknown" },
+      { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" },
+      { text: "The chains of habit are too light to be felt until they are too heavy to be broken.", author: "Warren Buffett" },
+      { text: "Nothing tastes as good as clean feels.", author: "Unknown" },
+      { text: "Your future self is watching you right now through your memories.", author: "Unknown" },
+      { text: "Sobriety is a journey, not a destination.", author: "Unknown" },
+      { text: "What you resist persists. What you face, you replace.", author: "Unknown" },
+      { text: "You have exactly one life. Act accordingly.", author: "Colin Wright" },
+      { text: "The only bad day is the one where you gave up.", author: "Unknown" },
+    ];
+    function getDailyQuote() { const day = Math.floor(Date.now() / 86400000); return QUOTES[day % QUOTES.length]; }
+
+    function LoadingScreen() {
+      return (
+        <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background:'#0e0e12', flexDirection:'column', gap:20 }}>
+          <div style={{ fontSize:11, fontWeight:700, letterSpacing:3, color:'rgba(255,255,255,0.25)', textTransform:'uppercase' }}>CLEAN STREAK</div>
+          <div style={{ width:36, height:36, borderRadius:'50%', border:'2.5px solid rgba(91,142,240,0.15)', borderTop:'2.5px solid #5B8EF0', animation:'spin 0.8s linear infinite' }} />
+        </div>
+      );
+    }
+
+    function OnboardingScreen({ onComplete }) {
+      const [name, setName] = useState('');
+      const [habits, setHabits] = useState([{ id:'n1', name:'', color:COLOR_POOL[0], quitDate:formatDate(getToday()) }]);
+      function addHabit() { const color = COLOR_POOL[habits.length % COLOR_POOL.length]; setHabits(h => [...h, { id:'n'+(h.length+1), name:'', color, quitDate:formatDate(getToday()) }]); }
+      function updateHabit(id, field, val) { setHabits(h => h.map(x => x.id===id ? {...x,[field]:val} : x)); }
+      function removeHabit(id) { setHabits(h => h.filter(x => x.id!==id)); }
+      const canProceed = habits.some(h => h.name.trim().length > 0);
+      return (
+        <div style={{ flex:1, overflowY:'auto', background:'#0e0e12', paddingTop:'env(safe-area-inset-top)', paddingBottom:'max(env(safe-area-inset-bottom), 24px)' }}>
+          <div style={{ padding:'32px 24px 28px', textAlign:'center' }}>
+            <div style={{ fontSize:11, fontWeight:700, letterSpacing:3, color:'rgba(255,255,255,0.3)', textTransform:'uppercase', marginBottom:16 }}>CLEAN STREAK</div>
+            <div style={{ fontSize:30, fontWeight:800, color:'#fff', lineHeight:1.2, marginBottom:10 }}>What are you<br/>leaving behind?</div>
+            <div style={{ fontSize:15, color:'rgba(255,255,255,0.45)', lineHeight:1.6 }}>Track how long you've been clean.<br/>Every day counts.</div>
+          </div>
+          <div style={{ padding:'0 20px 20px' }}>
+            <div style={{ fontSize:11, fontWeight:600, letterSpacing:1.2, color:'rgba(255,255,255,0.3)', textTransform:'uppercase', marginBottom:10, paddingLeft:4 }}>YOUR NAME (optional)</div>
+            <input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Alex" style={{ width:'100%', padding:'14px 16px', borderRadius:14, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', color:'#fff', fontSize:16, outline:'none' }} />
+          </div>
+          <div style={{ padding:'0 20px' }}>
+            <div style={{ fontSize:11, fontWeight:600, letterSpacing:1.2, color:'rgba(255,255,255,0.3)', textTransform:'uppercase', marginBottom:12, paddingLeft:4 }}>HABITS TO QUIT</div>
+            {habits.map((h,i) => (
+              <div key={h.id} className="animate-fadeIn" style={{ marginBottom:12 }}>
+                <div style={{ background:'rgba(255,255,255,0.06)', borderRadius:16, border:'1px solid rgba(255,255,255,0.08)', padding:14, overflow:'hidden' }}>
+                  <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:10 }}>
+                    <div style={{ width:28, height:28, borderRadius:'50%', background:h.color, flexShrink:0, boxShadow:`0 0 0 3px rgba(0,0,0,0.3), 0 0 0 4px ${h.color}44` }} />
+                    <input value={h.name} onChange={e=>updateHabit(h.id,'name',e.target.value)} placeholder={['e.g. No smoking','e.g. No sugar','e.g. No alcohol'][i]||'Habit name'} style={{ flex:1, minWidth:0, padding:'9px 12px', borderRadius:10, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.08)', color:'#fff', fontSize:15, outline:'none' }} />
+                    {habits.length>1 && <button onClick={()=>removeHabit(h.id)} style={{ width:28, height:28, borderRadius:'50%', background:'rgba(255,255,255,0.08)', border:'none', color:'rgba(255,255,255,0.4)', fontSize:18, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>x</button>}
+                  </div>
+                  <div style={{ overflow:'hidden' }}>
+                    <div style={{ fontSize:11, color:'rgba(255,255,255,0.3)', marginBottom:6, paddingLeft:2 }}>Quit date</div>
+                    <input type="date" value={h.quitDate} max={formatDate(getToday())} onChange={e=>updateHabit(h.id,'quitDate',e.target.value)} style={{ width:'100%', padding:'10px 12px', borderRadius:10, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.08)', color:'#fff', fontSize:14, outline:'none', colorScheme:'dark', display:'block' }} />
+                  </div>
+                </div>
+              </div>
+            ))}
+            <button onClick={addHabit} style={{ width:'100%', padding:'13px', borderRadius:14, background:'rgba(255,255,255,0.05)', border:'1px dashed rgba(255,255,255,0.18)', color:'rgba(255,255,255,0.5)', fontSize:14, fontWeight:500, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+              <span style={{ fontSize:18 }}>+</span> Add another habit
+            </button>
+          </div>
+          <div style={{ padding:'24px 20px 0' }}>
+            <button onClick={()=>canProceed && onComplete(name.trim(), habits.filter(h=>h.name.trim()))} disabled={!canProceed} style={{ width:'100%', padding:'17px', borderRadius:16, background:canProceed?'linear-gradient(135deg, #5B8EF0 0%, #4DBF7A 100%)':'rgba(255,255,255,0.1)', border:'none', color:canProceed?'#fff':'rgba(255,255,255,0.3)', fontSize:16, fontWeight:700, cursor:canProceed?'pointer':'default', boxShadow:canProceed?'0 4px 24px rgba(91,142,240,0.35)':'none', transition:'all 0.2s' }}>
+              Start tracking
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    function NotifScreen({ onAllow, onSkip }) {
+      const [requesting, setRequesting] = useState(false);
+      async function handleAllow() {
+        setRequesting(true);
+        try { if ('Notification' in window) { await Notification.requestPermission(); } } catch(e) {}
+        setRequesting(false);
+        onAllow();
+      }
+      return (
+        <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'40px 28px', background:'#0e0e12', paddingTop:'max(40px, env(safe-area-inset-top))', paddingBottom:'max(40px, env(safe-area-inset-bottom))' }}>
+          <div style={{ width:80, height:80, borderRadius:24, marginBottom:28, background:'linear-gradient(135deg, #5B8EF0 0%, #4DBF7A 100%)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 8px 32px rgba(91,142,240,0.4)' }}>
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6V11c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" fill="#fff"/></svg>
+          </div>
+          <div style={{ fontSize:26, fontWeight:800, color:'#fff', textAlign:'center', marginBottom:12, lineHeight:1.25 }}>Stay on track,<br/>every day</div>
+          <div style={{ fontSize:15, color:'rgba(255,255,255,0.5)', textAlign:'center', lineHeight:1.6, marginBottom:36 }}>Get a gentle nudge each morning and celebrate when you hit a milestone.</div>
+          {[['sunrise','Daily morning check-in'],['medal','Milestone alerts (7d, 30d, 100d...)'],['quote','Daily motivational quote']].map(([icon,text])=>(
+            <div key={text} style={{ display:'flex', alignItems:'center', gap:12, marginBottom:14, width:'100%' }}>
+              <div style={{ width:40, height:40, borderRadius:12, background:'rgba(255,255,255,0.08)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}>{icon==='sunrise'?'🌅':icon==='medal'?'🏅':'💬'}</div>
+              <span style={{ fontSize:14, color:'rgba(255,255,255,0.7)', fontWeight:500 }}>{text}</span>
+            </div>
+          ))}
+          <div style={{ width:'100%', marginTop:24 }}>
+            <button onClick={handleAllow} disabled={requesting} style={{ width:'100%', padding:'16px', borderRadius:16, marginBottom:12, background:'linear-gradient(135deg, #5B8EF0 0%, #4DBF7A 100%)', border:'none', color:'#fff', fontSize:16, fontWeight:700, cursor:'pointer', boxShadow:'0 4px 24px rgba(91,142,240,0.35)', opacity:requesting?0.7:1 }}>
+              {requesting ? 'Enabling...' : 'Enable notifications'}
+            </button>
+            <button onClick={onSkip} style={{ width:'100%', padding:'14px', borderRadius:16, background:'transparent', border:'1px solid rgba(255,255,255,0.12)', color:'rgba(255,255,255,0.4)', fontSize:15, cursor:'pointer' }}>Maybe later</button>
+          </div>
+        </div>
+      );
+    }
+
+    function MilestoneBadge({ days, streak, color }) {
+      const earned = streak >= days;
+      const remaining = days - streak;
+      return (
+        <div style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'3px 8px', borderRadius:20, background:earned?color+'22':'rgba(255,255,255,0.05)', border:`1px solid ${earned?color+'55':'rgba(255,255,255,0.12)'}` }}>
+          {earned && <svg width="8" height="8" viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 3" stroke={color} strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+          <span style={{ fontSize:10, fontWeight:600, color:earned?color:'rgba(255,255,255,0.35)', whiteSpace:'nowrap' }}>
+            {days}d{!earned ? ` - ${remaining}d left` : ''}
+          </span>
+        </div>
+      );
+    }
+
+    function StreakCard({ habit, onTap, total=3 }) {
+      const TODAY = getToday();
+      const streak = daysBetween(parseDate(habit.quitDate), TODAY);
+      const displayMilestones = [30, 100];
+      return (
+        <div onClick={onTap} style={{ background:'rgba(255,255,255,0.06)', borderRadius:18, border:'1px solid rgba(255,255,255,0.08)', padding:'14px 12px 12px', cursor:'pointer', transition:'transform 0.15s', WebkitUserSelect:'none', display:'flex', flexDirection:'column' }}
+          onTouchStart={e=>e.currentTarget.style.transform='scale(0.97)'}
+          onTouchEnd={e=>e.currentTarget.style.transform='scale(1)'}>
+          <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
+            <div style={{ width:8, height:8, borderRadius:'50%', background:habit.color, boxShadow:`0 0 5px ${habit.color}99`, flexShrink:0 }} />
+            <span style={{ fontSize:12, fontWeight:600, color:'rgba(255,255,255,0.6)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{habit.name}</span>
+          </div>
+          <div style={{ display:'flex', alignItems:'baseline', gap:4, marginBottom:2 }}>
+            <span style={{ fontWeight:800, color:'#fff', lineHeight:1, letterSpacing:-1.5, fontSize:total===1?72:total===2?52:36 }}>{streak}</span>
+            <span style={{ fontSize:total<=2?14:11, color:'rgba(255,255,255,0.3)', fontWeight:500 }}>days</span>
+          </div>
+          <div style={{ fontSize:10, color:'rgba(255,255,255,0.3)', marginBottom:10 }}>since {humanDate(habit.quitDate)}</div>
+          <div style={{ marginTop:'auto', display:'flex', gap:4, flexWrap:'wrap' }}>
+            {displayMilestones.map(m => <MilestoneBadge key={m} days={m} streak={streak} color={habit.color}/>)}
+          </div>
+        </div>
+      );
+    }
+
+    function CalendarMonth({ year, month, habits, headless=false }) {
+      const TODAY = getToday();
+      const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      const daysInMonth = new Date(year, month+1, 0).getDate();
+      const firstDay = new Date(year, month, 1).getDay();
+      const milestoneDays = new Set();
+      habits.forEach(h => { const qd=parseDate(h.quitDate); MILESTONES.forEach(m=>{ const md=new Date(qd.getTime()+m*86400000); if(md.getFullYear()===year&&md.getMonth()===month) milestoneDays.add(md.getDate()); }); });
+      const cells = [];
+      for (let i=0;i<firstDay;i++) cells.push(null);
+      for (let d=1;d<=daysInMonth;d++) cells.push(d);
+      const cellDate = d => new Date(year, month, d);
+      function getDotsForDay(d) { const cd=cellDate(d); return habits.filter(h=>{ const qd=parseDate(h.quitDate); return cd>=qd&&cd<=TODAY; }); }
+      const isToday = d => year===TODAY.getFullYear()&&month===TODAY.getMonth()&&d===TODAY.getDate();
+      const isFuture = d => cellDate(d)>TODAY;
+      return (
+        <div style={{ padding:headless?0:'16px 14px', background:headless?'transparent':'rgba(255,255,255,0.04)', borderRadius:headless?0:18, border:headless?'none':'1px solid rgba(255,255,255,0.07)' }}>
+          {!headless&&<div style={{ fontSize:14, fontWeight:700, color:'#fff', marginBottom:14 }}>{monthNames[month]} {year}</div>}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', marginBottom:6 }}>
+            {['S','M','T','W','T','F','S'].map((d,i)=><div key={i} style={{ textAlign:'center', fontSize:10, fontWeight:600, color:'rgba(255,255,255,0.25)', padding:'2px 0' }}>{d}</div>)}
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'2px 0' }}>
+            {cells.map((d,i)=>{
+              if(!d) return <div key={i}/>;
+              const dots=getDotsForDay(d); const isMilestone=milestoneDays.has(d)&&!isFuture(d); const today=isToday(d); const future=isFuture(d);
+              return (
+                <div key={i} style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'2px 0' }}>
+                  <div style={{ fontSize:11, fontWeight:today?700:400, color:future?'rgba(255,255,255,0.15)':today?'#fff':'rgba(255,255,255,0.6)', width:22, height:22, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:'50%', background:today?'rgba(255,255,255,0.15)':'transparent' }}>{d}</div>
+                  <div style={{ display:'flex', gap:2, minHeight:8, alignItems:'center', justifyContent:'center' }}>
+                    {dots.map(h=>isMilestone?<div key={h.id} style={{ width:7, height:7, borderRadius:'50%', border:`1.5px solid ${h.color}`, background:'transparent' }}/>:<div key={h.id} style={{ width:5, height:5, borderRadius:'50%', background:h.color, opacity:future?0.2:0.9 }}/>)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    function CalendarLegend({ habits }) {
+      return (
+        <div style={{ display:'flex', gap:12, flexWrap:'wrap', padding:'0 2px 14px', alignItems:'center' }}>
+          {habits.map(h=>(<div key={h.id} style={{ display:'flex', alignItems:'center', gap:5 }}><div style={{ width:7, height:7, borderRadius:'50%', background:h.color }}/><span style={{ fontSize:11, color:'rgba(255,255,255,0.45)', fontWeight:500 }}>{h.name}</span></div>))}
+          <div style={{ display:'flex', alignItems:'center', gap:5 }}><div style={{ width:8, height:8, borderRadius:'50%', border:'1.5px solid rgba(255,255,255,0.5)', background:'transparent' }}/><span style={{ fontSize:11, color:'rgba(255,255,255,0.45)', fontWeight:500 }}>Milestone</span></div>
+        </div>
+      );
+    }
+
+    function CollapsibleCalendar({ months, habits }) {
+      const TODAY = getToday();
+      const currentKey = `${TODAY.getFullYear()}-${TODAY.getMonth()}`;
+      const initOpen = {};
+      months.forEach(({year,month})=>{ initOpen[`${year}-${month}`]=(`${year}-${month}`===currentKey); });
+      const [open, setOpen] = useState(initOpen);
+      const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      return (
+        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          {months.map(({year,month})=>{
+            const key=`${year}-${month}`; const isOpen=!!open[key]; const isCurrent=(key===currentKey);
+            return (
+              <div key={key}>
+                <button onClick={()=>setOpen(p=>({...p,[key]:!p[key]}))} style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'11px 14px', borderRadius:isOpen?'14px 14px 0 0':14, background:isCurrent?'rgba(255,255,255,0.1)':'rgba(255,255,255,0.04)', border:`1px solid rgba(255,255,255,${isCurrent?'0.18':'0.08'})`, borderBottom:isOpen?'1px solid rgba(255,255,255,0.05)':undefined, cursor:'pointer' }}>
+                  <span style={{ fontSize:13, fontWeight:isCurrent?700:600, color:isCurrent?'#fff':'rgba(255,255,255,0.55)' }}>{monthNames[month]} {year}</span>
+                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    {isCurrent&&<span style={{ fontSize:10, fontWeight:600, letterSpacing:0.8, color:'rgba(255,255,255,0.4)', textTransform:'uppercase' }}>Now</span>}
+                    <svg width="12" height="12" viewBox="0 0 12 12" style={{ transform:isOpen?'rotate(180deg)':'none', transition:'transform 0.2s' }}><path d="M2 4l4 4 4-4" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
+                </button>
+                {isOpen&&(<div style={{ background:isCurrent?'rgba(255,255,255,0.05)':'rgba(255,255,255,0.03)', borderRadius:'0 0 14px 14px', border:`1px solid rgba(255,255,255,${isCurrent?'0.12':'0.07'})`, borderTop:'none', padding:'12px 14px' }}><CalendarMonth year={year} month={month} habits={habits} headless/></div>)}
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    function DashboardScreen({ name, habits, onTapHabit, onOpenNotif, onAddHabit }) {
+      const TODAY = getToday();
+      const quote = getDailyQuote();
+      const earliest = habits.length ? habits.reduce((min,h)=>{ const d=parseDate(h.quitDate); return d<min?d:min; }, TODAY) : TODAY;
+      const months = [];
+      let cur = new Date(earliest.getFullYear(), earliest.getMonth(), 1);
+      const end = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+      while (cur<=end) { months.push({ year:cur.getFullYear(), month:cur.getMonth() }); cur=new Date(cur.getFullYear(), cur.getMonth()+1, 1); }
+      return (
+        <div style={{ flex:1, overflowY:'auto', background:'#0e0e12', paddingTop:'env(safe-area-inset-top)', paddingBottom:'max(env(safe-area-inset-bottom), 24px)' }}>
+          <div style={{ padding:'18px 20px 16px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            <div>
+              <div style={{ fontSize:11, fontWeight:600, letterSpacing:2, color:'rgba(255,255,255,0.3)', textTransform:'uppercase', marginBottom:4 }}>clean streak</div>
+              <div style={{ fontSize:22, fontWeight:700, color:'#fff' }}>{name?`Hey ${name}`:' Your streaks'}</div>
+            </div>
+            <button onClick={onOpenNotif} style={{ width:40, height:40, borderRadius:'50%', background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6V11c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" fill="rgba(255,255,255,0.5)"/></svg>
+            </button>
+          </div>
+          <div style={{ padding:'0 16px 4px' }}>
+            <div style={{ display:'grid', gridTemplateColumns:habits.length===1?'1fr':habits.length===2?'1fr 1fr':habits.length===4?'1fr 1fr':'repeat(3, 1fr)', gap:10, alignItems:'stretch' }}>
+              {habits.map(h=><StreakCard key={h.id} habit={h} onTap={()=>onTapHabit(h)} total={habits.length}/>)}
+            </div>
+          </div>
+          <div style={{ padding:'12px 16px 0' }}>
+            <button onClick={onAddHabit} style={{ width:'100%', padding:'12px', borderRadius:14, background:'rgba(255,255,255,0.04)', border:'1px dashed rgba(255,255,255,0.15)', color:'rgba(255,255,255,0.4)', fontSize:13, fontWeight:500, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+              <span style={{ fontSize:16 }}>+</span> Track a new habit
+            </button>
+          </div>
+          <div style={{ margin:'20px 16px 0', padding:'16px', borderRadius:16, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.07)' }}>
+            <div style={{ fontSize:10, fontWeight:700, letterSpacing:1.5, color:'rgba(255,255,255,0.25)', textTransform:'uppercase', marginBottom:10 }}>TODAY'S REMINDER</div>
+            <div style={{ fontSize:14, color:'rgba(255,255,255,0.75)', lineHeight:1.6, fontStyle:'italic', marginBottom:quote.author!=='Unknown'?8:0 }}>"{quote.text}"</div>
+            {quote.author!=='Unknown' && <div style={{ fontSize:11, color:'rgba(255,255,255,0.3)', fontWeight:600 }}>-- {quote.author}</div>}
+          </div>
+          <div style={{ padding:'20px 16px 0' }}>
+            <CalendarLegend habits={habits}/>
+            <CollapsibleCalendar months={months} habits={habits}/>
+          </div>
+        </div>
+      );
+    }
+
+    function EditSheet({ habit, onClose, onUpdate, onDelete }) {
+      const TODAY = getToday();
+      const [date, setDate] = useState(habit.quitDate);
+      const [name, setName] = useState(habit.name);
+      const streak = daysBetween(parseDate(date), TODAY);
+      return (
+        <div style={{ position:'absolute', inset:0, zIndex:100, display:'flex', flexDirection:'column', justifyContent:'flex-end' }}>
+          <div onClick={onClose} style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.5)', backdropFilter:'blur(4px)' }}/>
+          <div className="animate-sheetIn" style={{ position:'relative', background:'#1a1a24', borderRadius:'24px 24px 0 0', padding:'0 0 max(40px, env(safe-area-inset-bottom))', border:'1px solid rgba(255,255,255,0.1)', borderBottom:'none', zIndex:10 }}>
+            <div style={{ display:'flex', justifyContent:'center', padding:'12px 0 18px' }}><div style={{ width:36, height:4, borderRadius:2, background:'rgba(255,255,255,0.2)' }}/></div>
+            <div style={{ padding:'0 20px 20px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+              <div><div style={{ fontSize:18, fontWeight:700, color:'#fff' }}>Edit habit</div><div style={{ fontSize:13, color:'rgba(255,255,255,0.4)', marginTop:2 }}>Update name or reset your start date</div></div>
+              <div style={{ width:10, height:10, borderRadius:'50%', background:habit.color, boxShadow:`0 0 8px ${habit.color}` }}/>
+            </div>
+            <div style={{ padding:'0 20px' }}>
+              <div style={{ marginBottom:16 }}>
+                <div style={{ fontSize:11, fontWeight:600, letterSpacing:1.2, color:'rgba(255,255,255,0.3)', textTransform:'uppercase', marginBottom:8 }}>Habit name</div>
+                <input value={name} onChange={e=>setName(e.target.value)} style={{ width:'100%', padding:'14px 16px', borderRadius:14, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.12)', color:'#fff', fontSize:16, outline:'none' }}/>
+              </div>
+              <div style={{ marginBottom:20 }}>
+                <div style={{ fontSize:11, fontWeight:600, letterSpacing:1.2, color:'rgba(255,255,255,0.3)', textTransform:'uppercase', marginBottom:8 }}>Quit date</div>
+                <input type="date" value={date} max={formatDate(TODAY)} onChange={e=>setDate(e.target.value)} style={{ width:'100%', padding:'14px 16px', borderRadius:14, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.12)', color:'#fff', fontSize:16, outline:'none', colorScheme:'dark', display:'block' }}/>
+              </div>
+              <div style={{ background:`${habit.color}18`, borderRadius:14, padding:'14px 16px', border:`1px solid ${habit.color}33`, marginBottom:20, display:'flex', alignItems:'center', gap:12 }}>
+                <div style={{ fontSize:36, fontWeight:800, color:habit.color, letterSpacing:-1 }}>{streak}</div>
+                <div><div style={{ fontSize:13, color:'rgba(255,255,255,0.6)' }}>days clean</div><div style={{ fontSize:12, color:'rgba(255,255,255,0.35)', marginTop:2 }}>since {humanDate(date)}</div></div>
+              </div>
+              <button onClick={()=>{ onUpdate({...habit,name,quitDate:date}); onClose(); }} style={{ width:'100%', padding:'15px', borderRadius:14, background:habit.color, border:'none', color:'#fff', fontSize:16, fontWeight:700, cursor:'pointer', boxShadow:`0 4px 20px ${habit.color}55`, marginBottom:10 }}>Update streak</button>
+              <button onClick={()=>{ onDelete(habit.id); onClose(); }} style={{ width:'100%', padding:'13px', borderRadius:14, background:'rgba(224,82,82,0.12)', border:'1px solid rgba(224,82,82,0.25)', color:'#E05252', fontSize:14, fontWeight:600, cursor:'pointer' }}>Remove habit</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function AddHabitSheet({ onClose, onAdd, existingCount }) {
+      const TODAY = getToday();
+      const [name, setName] = useState('');
+      const [quitDate, setQuitDate] = useState(formatDate(TODAY));
+      const color = COLOR_POOL[existingCount % COLOR_POOL.length];
+      const canAdd = name.trim().length > 0;
+      return (
+        <div style={{ position:'absolute', inset:0, zIndex:100, display:'flex', flexDirection:'column', justifyContent:'flex-end' }}>
+          <div onClick={onClose} style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.5)', backdropFilter:'blur(4px)' }}/>
+          <div className="animate-sheetIn" style={{ position:'relative', background:'#1a1a24', borderRadius:'24px 24px 0 0', padding:'0 0 max(40px, env(safe-area-inset-bottom))', border:'1px solid rgba(255,255,255,0.1)', borderBottom:'none', zIndex:10 }}>
+            <div style={{ display:'flex', justifyContent:'center', padding:'12px 0 18px' }}><div style={{ width:36, height:4, borderRadius:2, background:'rgba(255,255,255,0.2)' }}/></div>
+            <div style={{ padding:'0 20px 20px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+              <div><div style={{ fontSize:18, fontWeight:700, color:'#fff' }}>New habit</div><div style={{ fontSize:13, color:'rgba(255,255,255,0.4)', marginTop:2 }}>What are you leaving behind?</div></div>
+              <div style={{ width:10, height:10, borderRadius:'50%', background:color, boxShadow:`0 0 8px ${color}` }}/>
+            </div>
+            <div style={{ padding:'0 20px' }}>
+              <div style={{ marginBottom:16 }}>
+                <div style={{ fontSize:11, fontWeight:600, letterSpacing:1.2, color:'rgba(255,255,255,0.3)', textTransform:'uppercase', marginBottom:8 }}>Habit name</div>
+                <input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. No alcohol" style={{ width:'100%', padding:'14px 16px', borderRadius:14, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.12)', color:'#fff', fontSize:16, outline:'none' }}/>
+              </div>
+              <div style={{ marginBottom:24 }}>
+                <div style={{ fontSize:11, fontWeight:600, letterSpacing:1.2, color:'rgba(255,255,255,0.3)', textTransform:'uppercase', marginBottom:8 }}>Quit date</div>
+                <input type="date" value={quitDate} max={formatDate(TODAY)} onChange={e=>setQuitDate(e.target.value)} style={{ width:'100%', padding:'14px 16px', borderRadius:14, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.12)', color:'#fff', fontSize:16, outline:'none', colorScheme:'dark', display:'block' }}/>
+              </div>
+              <button onClick={()=>{ if(canAdd){ onAdd({ name:name.trim(), color, quitDate }); onClose(); }}} disabled={!canAdd} style={{ width:'100%', padding:'15px', borderRadius:14, background:canAdd?color:'rgba(255,255,255,0.1)', border:'none', color:canAdd?'#fff':'rgba(255,255,255,0.3)', fontSize:16, fontWeight:700, cursor:canAdd?'pointer':'default', boxShadow:canAdd?`0 4px 20px ${color}55`:'none', transition:'all 0.2s' }}>Start tracking</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      const [loading, setLoading]             = useState(true);
+      const [userId,  setUserId]              = useState(null);
+      const [screen,  setScreen]              = useState('onboarding');
+      const [name,    setName]                = useState('');
+      const [habits,  setHabits]              = useState([]);
+      const [selectedHabit, setSelectedHabit] = useState(null);
+      const [showNotif,     setShowNotif]     = useState(false);
+      const [showAddHabit,  setShowAddHabit]  = useState(false);
+
+      useEffect(()=>{
+        async function init() {
+          try {
+            let { data: { session } } = await sb.auth.getSession();
+            if (!session) { const { data } = await sb.auth.signInAnonymously(); session = data.session; }
+            if (!session) { setLoading(false); return; }
+            const uid = session.user.id;
+            setUserId(uid);
+            const { data: profile } = await sb.from('user_profiles').select('*').eq('id', uid).maybeSingle();
+            if (profile?.name) setName(profile.name);
+            if (profile?.onboarding_done) setScreen('dashboard');
+            const { data: rows } = await sb.from('habits').select('*').eq('user_id', uid).order('created_at');
+            if (rows?.length) setHabits(rows.map(r=>({ id:r.id, name:r.name, color:r.color, quitDate:r.quit_date })));
+          } catch(e) { console.error('Init error:', e); }
+          setLoading(false);
+        }
+        init();
+      }, []);
+
+      async function syncHabits(uid, newHabits) {
+        if (!uid) return;
+        const { data: existing } = await sb.from('habits').select('id').eq('user_id', uid);
+        const existingIds = (existing||[]).map(r=>r.id);
+        const toDelete = existingIds.filter(id=>!newHabits.map(h=>h.id).includes(id));
+        if (toDelete.length) await sb.from('habits').delete().in('id', toDelete).eq('user_id', uid);
+        if (newHabits.length) await sb.from('habits').upsert(newHabits.map(h=>({ id:h.id, user_id:uid, name:h.name, color:h.color, quit_date:h.quitDate })), { onConflict:'id,user_id' });
+      }
+
+      async function handleOnboardingComplete(n, h) {
+        const newHabits = h.map((x,i)=>({...x, id:'h'+(Date.now()+i)}));
+        setName(n); setHabits(newHabits); setScreen('notif');
+        if (userId) {
+          await sb.from('user_profiles').upsert({ id:userId, name:n, onboarding_done:true });
+          await syncHabits(userId, newHabits);
+        }
+      }
+      async function handleHabitUpdate(updated) {
+        const newHabits = habits.map(h=>h.id===updated.id?updated:h);
+        setHabits(newHabits);
+        if (userId) await syncHabits(userId, newHabits);
+      }
+      async function handleAddHabit({ name: n, color, quitDate }) {
+        const newHabit = { id:'h'+Date.now(), name:n, color, quitDate };
+        const newHabits = [...habits, newHabit];
+        setHabits(newHabits);
+        if (userId) await syncHabits(userId, newHabits);
+      }
+      async function handleDeleteHabit(id) {
+        const newHabits = habits.filter(h=>h.id!==id);
+        setHabits(newHabits);
+        if (userId) await syncHabits(userId, newHabits);
+      }
+
+      if (loading) return <LoadingScreen/>;
+
+      const renderScreen = () => {
+        if (showNotif) return <NotifScreen onAllow={()=>setShowNotif(false)} onSkip={()=>setShowNotif(false)}/>;
+        if (screen==='onboarding') return <OnboardingScreen onComplete={handleOnboardingComplete}/>;
+        if (screen==='notif') return <NotifScreen onAllow={()=>setScreen('dashboard')} onSkip={()=>setScreen('dashboard')}/>;
+        if (screen==='dashboard') return (
+          <div style={{ flex:1, position:'relative', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+            <DashboardScreen name={name} habits={habits} onTapHabit={h=>setSelectedHabit(h)} onOpenNotif={()=>setShowNotif(true)} onAddHabit={()=>setShowAddHabit(true)}/>
+            {selectedHabit && <EditSheet habit={selectedHabit} onClose={()=>setSelectedHabit(null)} onUpdate={handleHabitUpdate} onDelete={handleDeleteHabit}/>}
+            {showAddHabit && <AddHabitSheet onClose={()=>setShowAddHabit(false)} onAdd={handleAddHabit} existingCount={habits.length}/>}
+          </div>
+        );
+      };
+
+      return (
+        <div style={{ height:'100%', display:'flex', flexDirection:'column', background:'#0e0e12', overflow:'hidden' }}>
+          {renderScreen()}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', ()=>{
+        navigator.serviceWorker.register('/sw.js').catch(err=>console.log('SW error:', err));
+      });
+    }
+  </script>
+</body>
+</html>

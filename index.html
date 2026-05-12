@@ -401,7 +401,7 @@
       const [subStatus, setSubStatus] = useState("");
       async function trySubscribe(uid) {
         if (!("serviceWorker" in navigator)) { setSubStatus("serviceWorker not supported"); return; }
-        if (!VAPID_PUB_KEY || VAPID_PUB_KEY === "__VAPID_PUBLIC_KEY__") { setSubStatus("VAPID key missing"); return; }
+        if (!VAPID_PUB_KEY || VAPID_PUB_KEY.length < 50) { setSubStatus("VAPID key missing"); return; }
         try {
           const reg = await navigator.serviceWorker.ready;
           if (!reg.pushManager) { setSubStatus("pushManager not available - open from home screen icon"); return; }
@@ -726,7 +726,7 @@
             if (profile && profile.onboarding_done) setScreen("dashboard");
             const { data: rows } = await sb.from("habits").select("*").eq("user_id", uid).order("created_at");
             if (rows && rows.length) setHabits(rows.map(r=>({ id:r.id, name:r.name, color:r.color, quitDate:r.quit_date })));
-            if (typeof Notification !== "undefined" && Notification.permission === "granted" && VAPID_PUB_KEY && VAPID_PUB_KEY !== "__VAPID_PUBLIC_KEY__" && "serviceWorker" in navigator) {
+            if (typeof Notification !== "undefined" && Notification.permission === "granted" && VAPID_PUB_KEY && VAPID_PUB_KEY.length > 50 && "serviceWorker" in navigator) {
               try {
                 const reg = await navigator.serviceWorker.ready;
                 const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUB_KEY) });

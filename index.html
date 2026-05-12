@@ -398,6 +398,18 @@
       const [requesting, setRequesting] = useState(false);
       const [granted, setGranted] = useState(typeof Notification !== "undefined" && Notification.permission === "granted");
       const [denied, setDenied] = useState(typeof Notification !== "undefined" && Notification.permission === "denied");
+      const [subStatus, setSubStatus] = useState("");
+      async function trySubscribe(uid) {
+        if (!("serviceWorker" in navigator)) { setSubStatus("serviceWorker not supported"); return; }
+        if (!VAPID_PUB_KEY || VAPID_PUB_KEY === "__VAPID_PUBLIC_KEY__") { setSubStatus("VAPID key missing"); return; }
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          if (!reg.pushManager) { setSubStatus("pushManager not available - open from home screen icon"); return; }
+          const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUB_KEY) });
+          if (uid) await sb.from("push_subscriptions").upsert({ user_id: uid, subscription: sub.toJSON() }, { onConflict: "user_id" });
+          setSubStatus("subscribed");
+        } catch(e) { setSubStatus("error: " + e.message); }
+      }
       async function handleAllow() {
         setRequesting(true);
         try {
@@ -405,13 +417,7 @@
             const perm = await Notification.requestPermission();
             setGranted(perm === "granted");
             setDenied(perm === "denied");
-            if (perm === "granted" && "serviceWorker" in navigator && VAPID_PUB_KEY && VAPID_PUB_KEY !== "__VAPID_PUBLIC_KEY__") {
-              try {
-                const reg = await navigator.serviceWorker.ready;
-                const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUB_KEY) });
-                if (userId) await sb.from("push_subscriptions").upsert({ user_id: userId, subscription: sub.toJSON() }, { onConflict: "user_id" });
-              } catch(e) { console.warn("Push sub failed:", e); }
-            }
+            if (perm === "granted") await trySubscribe(userId);
           }
         } catch(e) {}
         setRequesting(false);
@@ -435,9 +441,13 @@
             </div>
           ))}
           {granted && (
-            <div style={{ width:64, height:64, borderRadius:"50%", background:"rgba(77,191,122,0.15)", border:"2px solid rgba(77,191,122,0.4)", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:32 }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#4DBF7A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </div>
+            <React.Fragment>
+              <div style={{ width:64, height:64, borderRadius:"50%", background:"rgba(77,191,122,0.15)", border:"2px solid rgba(77,191,122,0.4)", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:16 }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#4DBF7A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </div>
+              <button onClick={()=>trySubscribe(userId)} style={{ marginBottom:16, padding:"10px 20px", borderRadius:12, background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.15)", color:"rgba(255,255,255,0.6)", fontSize:13, cursor:"pointer" }}>Refresh subscription</button>
+              {subStatus ? <div style={{ fontSize:12, color: subStatus==="subscribed" ? "#4DBF7A" : "#E05252", marginBottom:16, textAlign:"center", padding:"0 20px" }}>{subStatus}</div> : null}
+            </React.Fragment>
           )}
           <div style={{ width:"100%" }}>
             {!granted && !denied && (

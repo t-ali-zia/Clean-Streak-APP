@@ -460,13 +460,9 @@
             </div>
           ))}
           {granted && (
-            <React.Fragment>
-              <div style={{ width:64, height:64, borderRadius:"50%", background:"rgba(77,191,122,0.15)", border:"2px solid rgba(77,191,122,0.4)", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:16 }}>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#4DBF7A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              </div>
-              <button onClick={()=>trySubscribe(userId)} style={{ marginBottom:16, padding:"10px 20px", borderRadius:12, background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.15)", color:"rgba(255,255,255,0.6)", fontSize:13, cursor:"pointer" }}>Refresh subscription</button>
-              {subStatus ? <div style={{ fontSize:12, color: subStatus==="subscribed" ? "#4DBF7A" : "#E05252", marginBottom:16, textAlign:"center", padding:"0 20px" }}>{subStatus}</div> : null}
-            </React.Fragment>
+            <div style={{ width:64, height:64, borderRadius:"50%", background:"rgba(77,191,122,0.15)", border:"2px solid rgba(77,191,122,0.4)", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:32 }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#4DBF7A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </div>
           )}
           <div style={{ width:"100%" }}>
             {!granted && !denied && (

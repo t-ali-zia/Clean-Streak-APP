@@ -716,6 +716,13 @@
             if (profile && profile.onboarding_done) setScreen("dashboard");
             const { data: rows } = await sb.from("habits").select("*").eq("user_id", uid).order("created_at");
             if (rows && rows.length) setHabits(rows.map(r=>({ id:r.id, name:r.name, color:r.color, quitDate:r.quit_date })));
+            if (typeof Notification !== "undefined" && Notification.permission === "granted" && VAPID_PUB_KEY && VAPID_PUB_KEY !== "__VAPID_PUBLIC_KEY__" && "serviceWorker" in navigator) {
+              try {
+                const reg = await navigator.serviceWorker.ready;
+                const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUB_KEY) });
+                await sb.from("push_subscriptions").upsert({ user_id: uid, subscription: sub.toJSON() }, { onConflict: "user_id" });
+              } catch(e) { console.warn("Push re-subscribe failed:", e); }
+            }
           } catch(e) { console.error("Init error:", e); }
           setLoading(false);
         }

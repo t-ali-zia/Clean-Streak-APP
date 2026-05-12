@@ -19,7 +19,7 @@
     body { font-family: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
     #root { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
     input, button { font-family: inherit; }
-    input[type="date"] { width: 100%; min-width: 0; display: block; }
+    input[type="date"] { width: 100%; min-width: 0; max-width: 100%; display: block; box-sizing: border-box; -webkit-appearance: none; appearance: none; }
     input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.5; cursor: pointer; }
     @keyframes spin { to { transform: rotate(360deg); } }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -455,12 +455,11 @@
 
     function MilestoneBadge({ days, streak, color }) {
       const earned = streak >= days;
-      const remaining = days - streak;
       return (
-        <div style={{ display:"inline-flex", alignItems:"center", gap:4, padding:"3px 7px", borderRadius:20, background:earned ? color+"22" : "rgba(255,255,255,0.05)", border:"1px solid " + (earned ? color+"55" : "rgba(255,255,255,0.12)") }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:3, padding:"4px 6px", borderRadius:20, background:earned ? color+"22" : "rgba(255,255,255,0.05)", border:"1px solid " + (earned ? color+"55" : "rgba(255,255,255,0.1)") }}>
           {earned && <svg width="8" height="8" viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 3" stroke={color} strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-          <span style={{ fontSize:10, fontWeight:600, color:earned ? color : "rgba(255,255,255,0.35)", whiteSpace:"nowrap" }}>
-            {days}d{!earned ? " - " + remaining + "d left" : ""}
+          <span style={{ fontSize:10, fontWeight:600, color:earned ? color : "rgba(255,255,255,0.25)" }}>
+            {days}d
           </span>
         </div>
       );
@@ -481,8 +480,8 @@
             <span style={{ fontWeight:800, color:"#fff", lineHeight:1, letterSpacing:-1.5, fontSize:total===1?72:total===2?52:36 }}>{streak}</span>
             <span style={{ fontSize:total<=2?14:11, color:"rgba(255,255,255,0.3)", fontWeight:500 }}>days</span>
           </div>
-          <div style={{ fontSize:10, color:"rgba(255,255,255,0.3)", marginBottom:10 }}>since {humanDate(habit.quitDate)}</div>
-          <div style={{ marginTop:"auto", display:"flex", gap:4, flexWrap:"wrap" }}>
+          <div style={{ fontSize:10, color:"rgba(255,255,255,0.3)", marginBottom:10, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>since {humanDate(habit.quitDate)}</div>
+          <div style={{ marginTop:"auto", display:"grid", gridTemplateColumns:"1fr 1fr", gap:4 }}>
             {[7,14,30,100].map(m => <MilestoneBadge key={m} days={m} streak={streak} color={habit.color}/>)}
           </div>
         </div>

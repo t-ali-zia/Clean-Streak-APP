@@ -115,7 +115,8 @@
     const SUPABASE_URL  = "__SUPABASE_URL__";
     const SUPABASE_ANON = "__SUPABASE_ANON_KEY__";
     const VAPID_PUB_KEY = "__VAPID_PUBLIC_KEY__";
-    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    let sb;
+    try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON); } catch(e) { sb = null; }
 
     function urlBase64ToUint8Array(b) {
       const pad = "=".repeat((4 - b.length % 4) % 4);
@@ -442,34 +443,40 @@
 
     function OnboardingScreen({ onComplete }) {
       const [name, setName] = useState("");
-      const [habits, setHabits] = useState([{ id:"n1", name:"", color:COLOR_POOL[0], quitDate:formatDate(getToday()) }]);
-      function addHabit() { setHabits(h => [...h, { id:"n"+(h.length+1), name:"", color:COLOR_POOL[h.length % COLOR_POOL.length], quitDate:formatDate(getToday()) }]); }
+      const [habits, setHabits] = useState([{ id:"n1", name:"", color:COLOR_POOL[0], quitDate:formatDate(getToday()), habitType:"quit" }]);
+      function addHabit() { setHabits(h => [...h, { id:"n"+(h.length+1), name:"", color:COLOR_POOL[h.length % COLOR_POOL.length], quitDate:formatDate(getToday()), habitType:"quit" }]); }
       function updateHabit(id, field, val) { setHabits(h => h.map(x => x.id===id ? {...x,[field]:val} : x)); }
       function removeHabit(id) { setHabits(h => h.filter(x => x.id!==id)); }
+      const quitPlaceholders = ["e.g. No smoking","e.g. No sugar","e.g. No alcohol","Habit name"];
+      const buildPlaceholders = ["e.g. Gym","e.g. Reading","e.g. Meditation","Habit name"];
       const canProceed = habits.some(h => h.name.trim().length > 0);
       return (
         <div style={{ flex:1, overflowY:"auto", background:"var(--bg)", paddingTop:"env(safe-area-inset-top)", paddingBottom:"max(env(safe-area-inset-bottom), 24px)" }}>
           <div style={{ padding:"32px 24px 28px", textAlign:"center" }}>
             <div style={{ fontSize:11, fontWeight:700, letterSpacing:3, color:"var(--text-faint)", textTransform:"uppercase", marginBottom:16 }}>CLEAN STREAK</div>
-            <div style={{ fontSize:30, fontWeight:800, color:"var(--text)", lineHeight:1.2, marginBottom:10 }}>What are you<br/>leaving behind?</div>
-            <div style={{ fontSize:15, color:"var(--text-dim)", lineHeight:1.6 }}>Track how long you've been clean.<br/>Every day counts.</div>
+            <div style={{ fontSize:30, fontWeight:800, color:"var(--text)", lineHeight:1.2, marginBottom:10 }}>Start tracking<br/>your habits</div>
+            <div style={{ fontSize:15, color:"var(--text-dim)", lineHeight:1.6 }}>Quit bad habits, build good ones.<br/>Track your progress every day.</div>
           </div>
           <div style={{ padding:"0 20px 20px" }}>
             <div style={{ fontSize:11, fontWeight:600, letterSpacing:1.2, color:"var(--text-faint)", textTransform:"uppercase", marginBottom:10, paddingLeft:4 }}>YOUR NAME (optional)</div>
             <input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Alex" style={{ width:"100%", padding:"14px 16px", borderRadius:14, background:"var(--input-bg)", border:"1px solid var(--separator)", color:"var(--text)", fontSize:16, outline:"none" }} />
           </div>
           <div style={{ padding:"0 20px" }}>
-            <div style={{ fontSize:11, fontWeight:600, letterSpacing:1.2, color:"var(--text-faint)", textTransform:"uppercase", marginBottom:12, paddingLeft:4 }}>HABITS TO QUIT</div>
+            <div style={{ fontSize:11, fontWeight:600, letterSpacing:1.2, color:"var(--text-faint)", textTransform:"uppercase", marginBottom:12, paddingLeft:4 }}>YOUR HABITS</div>
             {habits.map((h,i) => (
               <div key={h.id} className="animate-fadeIn" style={{ marginBottom:12 }}>
                 <div style={{ background:"var(--card)", borderRadius:16, border:"1px solid var(--card-border)", padding:14, overflow:"hidden" }}>
+                  <div style={{ display:"flex", borderRadius:8, overflow:"hidden", border:"1px solid var(--separator)", marginBottom:10 }}>
+                    <button onClick={()=>updateHabit(h.id,"habitType","quit")} style={{ flex:1, padding:"7px", background:h.habitType==="quit"?"var(--overlay)":"transparent", border:"none", color:h.habitType==="quit"?"var(--text)":"var(--icon)", fontSize:12, fontWeight:h.habitType==="quit"?700:500, cursor:"pointer" }}>Quit</button>
+                    <button onClick={()=>updateHabit(h.id,"habitType","build")} style={{ flex:1, padding:"7px", background:h.habitType==="build"?"var(--overlay)":"transparent", border:"none", color:h.habitType==="build"?"var(--text)":"var(--icon)", fontSize:12, fontWeight:h.habitType==="build"?700:500, cursor:"pointer" }}>Build</button>
+                  </div>
                   <div style={{ display:"flex", gap:10, alignItems:"center", marginBottom:10 }}>
                     <div style={{ width:28, height:28, borderRadius:"50%", background:h.color, flexShrink:0 }} />
-                    <input value={h.name} onChange={e=>updateHabit(h.id,"name",e.target.value)} placeholder={["e.g. No smoking","e.g. No sugar","e.g. No alcohol"][i]||"Habit name"} style={{ flex:1, minWidth:0, padding:"9px 12px", borderRadius:10, background:"var(--input-bg)", border:"1px solid var(--card-border)", color:"var(--text)", fontSize:15, outline:"none" }} />
+                    <input value={h.name} onChange={e=>updateHabit(h.id,"name",e.target.value)} placeholder={h.habitType==="build" ? (buildPlaceholders[i]||"Habit name") : (quitPlaceholders[i]||"Habit name")} style={{ flex:1, minWidth:0, padding:"9px 12px", borderRadius:10, background:"var(--input-bg)", border:"1px solid var(--card-border)", color:"var(--text)", fontSize:15, outline:"none" }} />
                     {habits.length>1 && <button onClick={()=>removeHabit(h.id)} style={{ width:28, height:28, borderRadius:"50%", background:"var(--overlay)", border:"none", color:"var(--icon-dim)", fontSize:18, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>x</button>}
                   </div>
                   <div style={{ overflow:"hidden" }}>
-                    <div style={{ fontSize:11, color:"var(--text-faint)", marginBottom:6 }}>Quit date</div>
+                    <div style={{ fontSize:11, color:"var(--text-faint)", marginBottom:6 }}>{h.habitType==="build" ? "Start date" : "Quit date"}</div>
                     <input type="date" value={h.quitDate} max={formatDate(getToday())} onChange={e=>updateHabit(h.id,"quitDate",e.target.value)} style={{ width:"100%", padding:"10px 12px", borderRadius:10, background:"var(--input-bg)", border:"1px solid var(--card-border)", color:"var(--text)", fontSize:14, outline:"none", display:"block" }} />
                   </div>
                 </div>
@@ -582,7 +589,10 @@
             <span style={{ fontWeight:800, color:"var(--text)", lineHeight:1, letterSpacing:-1.5, fontSize:total===1?72:total===2?52:36 }}>{streak}</span>
             <span style={{ fontSize:total<=2?14:11, color:"var(--text-faint)", fontWeight:500 }}>days</span>
           </div>
-          <div style={{ fontSize:10, color:"var(--text-faint)", marginBottom:10, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>since {humanDate(habit.quitDate)}</div>
+          <div style={{ fontSize:10, color:"var(--text-faint)", marginBottom:habit.previousQuitDate&&daysBetween(parseDate(habit.previousQuitDate),parseDate(habit.quitDate))>0?4:10, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>since {humanDate(habit.quitDate)}</div>
+          {habit.previousQuitDate && daysBetween(parseDate(habit.previousQuitDate), parseDate(habit.quitDate)) > 0 && (
+            <div style={{ fontSize:10, color:"var(--text-faint)", marginBottom:8 }}>Last streak: {daysBetween(parseDate(habit.previousQuitDate), parseDate(habit.quitDate))}d</div>
+          )}
           <div style={{ marginTop:"auto", display:"grid", gridTemplateColumns:"1fr 1fr", gap:4 }}>
             {[7,14,30,100].map(m => <MilestoneBadge key={m} days={m} streak={streak} color={habit.color}/>)}
           </div>
@@ -665,7 +675,7 @@
       const end = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
       while(cur<=end) { months.push({ year:cur.getFullYear(), month:cur.getMonth() }); cur=new Date(cur.getFullYear(), cur.getMonth()+1, 1); }
       return (
-        <div style={{ flex:1, overflowY:"auto", background:"var(--bg)", paddingTop:"env(safe-area-inset-top)", paddingBottom:"max(env(safe-area-inset-bottom), 24px)" }}>
+        <div style={{ flex:1, overflowY:"auto", background:"var(--bg)", paddingTop:"env(safe-area-inset-top)", paddingBottom:"calc(60px + max(env(safe-area-inset-bottom), 24px))" }}>
           <div style={{ padding:"18px 20px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
             <div>
               <div style={{ fontSize:11, fontWeight:600, letterSpacing:2, color:"var(--text-faint)", textTransform:"uppercase", marginBottom:4 }}>clean streak</div>
@@ -744,18 +754,26 @@
                 <input value={name} onChange={e=>setName(e.target.value)} style={{ width:"100%", padding:"14px 16px", borderRadius:14, background:"var(--input-bg)", border:"1px solid var(--input-border)", color:"var(--text)", fontSize:16, outline:"none" }}/>
               </div>
               <div style={{ marginBottom:20, overflow:"hidden" }}>
-                <div style={{ fontSize:11, fontWeight:600, letterSpacing:1.2, color:"var(--text-faint)", textTransform:"uppercase", marginBottom:8 }}>Quit date</div>
+                <div style={{ fontSize:11, fontWeight:600, letterSpacing:1.2, color:"var(--text-faint)", textTransform:"uppercase", marginBottom:8 }}>{habit.habitType==="build" ? "Start date" : "Quit date"}</div>
                 <input type="date" value={date} max={formatDate(TODAY)} onChange={e=>setDate(e.target.value)} style={{ width:"100%", minWidth:0, padding:"14px 16px", borderRadius:14, background:"var(--input-bg)", border:"1px solid var(--input-border)", color:"var(--text)", fontSize:16, outline:"none", display:"block" }}/>
               </div>
               <div style={{ background:habit.color+"18", borderRadius:14, padding:"14px 16px", border:"1px solid "+habit.color+"33", marginBottom:20, display:"flex", alignItems:"center", gap:12 }}>
                 <div style={{ fontSize:36, fontWeight:800, color:habit.color, letterSpacing:-1 }}>{streak}</div>
-                <div><div style={{ fontSize:13, color:"var(--text-sub)" }}>days clean</div><div style={{ fontSize:12, color:"var(--text-faint)", marginTop:2 }}>since {humanDate(date)}</div></div>
+                <div>
+                  <div style={{ fontSize:13, color:"var(--text-sub)" }}>{habit.habitType==="build" ? "days since start" : "days clean"}</div>
+                  <div style={{ fontSize:12, color:"var(--text-faint)", marginTop:2 }}>since {humanDate(date)}</div>
+                  {habit.previousQuitDate && daysBetween(parseDate(habit.previousQuitDate), parseDate(habit.quitDate)) > 0 && (
+                    <div style={{ fontSize:11, color:"var(--text-faint)", marginTop:4 }}>Last streak: {daysBetween(parseDate(habit.previousQuitDate), parseDate(habit.quitDate))}d</div>
+                  )}
+                </div>
               </div>
               <div style={{ display:"flex", gap:10, marginBottom:10 }}>
                 <button onClick={()=>{ onUpdate({...habit,name,quitDate:date}); onClose(); }} style={{ flex:1, padding:"15px", borderRadius:14, background:habit.color, border:"none", color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer" }}>Update</button>
-                <button onClick={handleShare} disabled={sharing} style={{ width:52, height:52, borderRadius:14, background:"var(--input-bg)", border:"1px solid var(--input-border)", color:"var(--text)", fontSize:20, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", opacity:sharing?0.5:1, flexShrink:0 }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" style={{ stroke:"var(--text-sub)" }} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><polyline points="16 6 12 2 8 6" style={{ stroke:"var(--text-sub)" }} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><line x1="12" y1="2" x2="12" y2="15" style={{ stroke:"var(--text-sub)" }} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </button>
+                {habit.habitType !== "build" && (
+                  <button onClick={handleShare} disabled={sharing} style={{ width:52, height:52, borderRadius:14, background:"var(--input-bg)", border:"1px solid var(--input-border)", color:"var(--text)", fontSize:20, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", opacity:sharing?0.5:1, flexShrink:0 }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" style={{ stroke:"var(--text-sub)" }} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><polyline points="16 6 12 2 8 6" style={{ stroke:"var(--text-sub)" }} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><line x1="12" y1="2" x2="12" y2="15" style={{ stroke:"var(--text-sub)" }} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </button>
+                )}
               </div>
               {!confirmDelete ? (
                 <button onClick={()=>setConfirmDelete(true)} style={{ width:"100%", padding:"13px", borderRadius:14, background:"rgba(224,82,82,0.12)", border:"1px solid rgba(224,82,82,0.25)", color:"#E05252", fontSize:14, fontWeight:600, cursor:"pointer" }}>Remove habit</button>
@@ -774,31 +792,39 @@
       );
     }
 
-    function AddHabitSheet({ onClose, onAdd, existingCount }) {
+    function AddHabitSheet({ onClose, onAdd, existingCount, defaultType }) {
       const TODAY = getToday();
       const [name, setName] = useState("");
       const [quitDate, setQuitDate] = useState(formatDate(TODAY));
+      const [habitType, setHabitType] = useState(defaultType || "quit");
       const color = COLOR_POOL[existingCount % COLOR_POOL.length];
       const canAdd = name.trim().length > 0;
+      const namePlaceholder = habitType === "build" ? "e.g. Gym, Reading, Meditation" : "e.g. No alcohol";
+      const dateLabel = habitType === "build" ? "Start date" : "Quit date";
+      const subtitle = habitType === "build" ? "What habit do you want to build?" : "What are you leaving behind?";
       return (
         <div style={{ position:"absolute", inset:0, zIndex:100, display:"flex", flexDirection:"column", justifyContent:"flex-end" }}>
           <div onClick={onClose} style={{ position:"absolute", inset:0, background:"var(--backdrop)", backdropFilter:"blur(4px)" }}/>
           <div className="animate-sheetIn" style={{ position:"relative", background:"var(--bg-sheet)", borderRadius:"24px 24px 0 0", padding:"0 0 max(40px, env(safe-area-inset-bottom))", border:"1px solid var(--separator)", borderBottom:"none", zIndex:10, overflow:"hidden" }}>
             <div style={{ display:"flex", justifyContent:"center", padding:"12px 0 18px" }}><div style={{ width:36, height:4, borderRadius:2, background:"var(--handle)" }}/></div>
-            <div style={{ padding:"0 20px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-              <div><div style={{ fontSize:18, fontWeight:700, color:"var(--text)" }}>New habit</div><div style={{ fontSize:13, color:"var(--text-dim)", marginTop:2 }}>What are you leaving behind?</div></div>
+            <div style={{ padding:"0 20px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <div><div style={{ fontSize:18, fontWeight:700, color:"var(--text)" }}>New habit</div><div style={{ fontSize:13, color:"var(--text-dim)", marginTop:2 }}>{subtitle}</div></div>
               <div style={{ width:10, height:10, borderRadius:"50%", background:color }}/>
             </div>
             <div style={{ padding:"0 20px", overflow:"hidden" }}>
+              <div style={{ display:"flex", borderRadius:10, overflow:"hidden", border:"1px solid var(--separator)", marginBottom:16 }}>
+                <button onClick={()=>setHabitType("quit")} style={{ flex:1, padding:"10px", background:habitType==="quit"?"var(--overlay)":"transparent", border:"none", color:habitType==="quit"?"var(--text)":"var(--icon)", fontSize:13, fontWeight:habitType==="quit"?700:500, cursor:"pointer" }}>Quit</button>
+                <button onClick={()=>setHabitType("build")} style={{ flex:1, padding:"10px", background:habitType==="build"?"var(--overlay)":"transparent", border:"none", color:habitType==="build"?"var(--text)":"var(--icon)", fontSize:13, fontWeight:habitType==="build"?700:500, cursor:"pointer" }}>Build</button>
+              </div>
               <div style={{ marginBottom:16 }}>
                 <div style={{ fontSize:11, fontWeight:600, letterSpacing:1.2, color:"var(--text-faint)", textTransform:"uppercase", marginBottom:8 }}>Habit name</div>
-                <input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. No alcohol" style={{ width:"100%", padding:"14px 16px", borderRadius:14, background:"var(--input-bg)", border:"1px solid var(--input-border)", color:"var(--text)", fontSize:16, outline:"none" }}/>
+                <input value={name} onChange={e=>setName(e.target.value)} placeholder={namePlaceholder} style={{ width:"100%", padding:"14px 16px", borderRadius:14, background:"var(--input-bg)", border:"1px solid var(--input-border)", color:"var(--text)", fontSize:16, outline:"none" }}/>
               </div>
               <div style={{ marginBottom:24, overflow:"hidden" }}>
-                <div style={{ fontSize:11, fontWeight:600, letterSpacing:1.2, color:"var(--text-faint)", textTransform:"uppercase", marginBottom:8 }}>Quit date</div>
+                <div style={{ fontSize:11, fontWeight:600, letterSpacing:1.2, color:"var(--text-faint)", textTransform:"uppercase", marginBottom:8 }}>{dateLabel}</div>
                 <input type="date" value={quitDate} max={formatDate(TODAY)} onChange={e=>setQuitDate(e.target.value)} style={{ width:"100%", minWidth:0, padding:"14px 16px", borderRadius:14, background:"var(--input-bg)", border:"1px solid var(--input-border)", color:"var(--text)", fontSize:16, outline:"none", display:"block" }}/>
               </div>
-              <button onClick={()=>{ if(canAdd){ onAdd({ name:name.trim(), color, quitDate }); onClose(); }}} disabled={!canAdd} style={{ width:"100%", padding:"15px", borderRadius:14, background:canAdd?color:"var(--overlay)", border:"none", color:canAdd?"#fff":"var(--text-faint)", fontSize:16, fontWeight:700, cursor:canAdd?"pointer":"default" }}>Start tracking</button>
+              <button onClick={()=>{ if(canAdd){ onAdd({ name:name.trim(), color, quitDate, habitType }); onClose(); }}} disabled={!canAdd} style={{ width:"100%", padding:"15px", borderRadius:14, background:canAdd?color:"var(--overlay)", border:"none", color:canAdd?"#fff":"var(--text-faint)", fontSize:16, fontWeight:700, cursor:canAdd?"pointer":"default" }}>Start tracking</button>
             </div>
           </div>
         </div>
@@ -873,6 +899,303 @@
       );
     }
 
+    function getSessionStreak(habitSessions) {
+      const dateSet = new Set(habitSessions.map(function(s) { return s.sessionDate; }));
+      let streak = 0;
+      let d = getToday();
+      while (dateSet.has(formatDate(d))) {
+        streak++;
+        d = new Date(d.getTime() - 86400000);
+      }
+      return streak;
+    }
+
+    function NavTab({ id, label, activeTab, onSwitch, children }) {
+      const active = activeTab === id;
+      return (
+        <button onClick={function() { onSwitch(id); }} style={{ flex:1, padding:"10px 0 8px", display:"flex", flexDirection:"column", alignItems:"center", gap:4, background:"transparent", border:"none", cursor:"pointer" }}>
+          {children}
+          <span style={{ fontSize:10, fontWeight:600, color:active?"var(--text)":"var(--icon)", letterSpacing:0.3 }}>{label}</span>
+        </button>
+      );
+    }
+
+    function BottomNav({ activeTab, onSwitch }) {
+      const streaksActive = activeTab === "streaks";
+      const sessionsActive = activeTab === "sessions";
+      const streakColor = streaksActive ? "var(--text)" : "var(--icon)";
+      const sessionColor = sessionsActive ? "var(--text)" : "var(--icon)";
+      return (
+        <div style={{ background:"var(--bg-sheet)", borderTop:"1px solid var(--separator)", display:"flex", paddingBottom:"env(safe-area-inset-bottom)", flexShrink:0, zIndex:50 }}>
+          <NavTab id="streaks" label="Streaks" activeTab={activeTab} onSwitch={onSwitch}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" style={{ stroke:streakColor, fill:streaksActive?"var(--text)":"none" }} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </NavTab>
+          <NavTab id="sessions" label="Sessions" activeTab={activeTab} onSwitch={onSwitch}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="3" width="7" height="7" rx="1.5" style={{ stroke:sessionColor }} strokeWidth="1.8"/>
+              <rect x="14" y="3" width="7" height="7" rx="1.5" style={{ stroke:sessionColor }} strokeWidth="1.8"/>
+              <rect x="3" y="14" width="7" height="7" rx="1.5" style={{ stroke:sessionColor }} strokeWidth="1.8"/>
+              <rect x="14" y="14" width="7" height="7" rx="1.5" style={{ stroke:sessionColor, fill:sessionsActive?"var(--text)":"none" }} strokeWidth="1.8"/>
+            </svg>
+          </NavTab>
+        </div>
+      );
+    }
+
+    function SessionCard({ habit, sessions, onLog, onLogPast, onTap }) {
+      const today = formatDate(getToday());
+      const habitSessions = sessions.filter(function(s) { return s.habitId === habit.id; });
+      const loggedToday = habitSessions.some(function(s) { return s.sessionDate === today; });
+      const total = habitSessions.length;
+      const streak = getSessionStreak(habitSessions);
+      const last7 = [];
+      for (let i = 0; i < 7; i++) { last7.push(formatDate(new Date(getToday().getTime() - i * 86400000))); }
+      const weekCount = habitSessions.filter(function(s) { return last7.includes(s.sessionDate); }).length;
+      return (
+        <div style={{ background:"var(--card)", borderRadius:18, border:"1px solid var(--card-border)", padding:"14px 16px 16px" }}>
+          <div onClick={onTap} style={{ display:"flex", alignItems:"center", gap:6, marginBottom:12, cursor:"pointer" }}>
+            <div style={{ width:8, height:8, borderRadius:"50%", background:habit.color, flexShrink:0 }} />
+            <span style={{ fontSize:14, fontWeight:600, color:"var(--text)", flex:1, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{habit.name}</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="1" style={{ fill:"var(--icon-dim)" }}/><circle cx="12" cy="5" r="1" style={{ fill:"var(--icon-dim)" }}/><circle cx="12" cy="19" r="1" style={{ fill:"var(--icon-dim)" }}/></svg>
+          </div>
+          <div style={{ display:"flex", gap:8, marginBottom:14 }}>
+            <div style={{ flex:1, background:"var(--badge-bg)", borderRadius:10, padding:"8px 10px", border:"1px solid var(--separator)" }}>
+              <div style={{ fontSize:20, fontWeight:800, color:"var(--text)", lineHeight:1 }}>{total}</div>
+              <div style={{ fontSize:10, color:"var(--text-faint)", marginTop:3 }}>total</div>
+            </div>
+            <div style={{ flex:1, background:"var(--badge-bg)", borderRadius:10, padding:"8px 10px", border:"1px solid var(--separator)" }}>
+              <div style={{ fontSize:20, fontWeight:800, color:streak>0?habit.color:"var(--text)", lineHeight:1 }}>{streak}</div>
+              <div style={{ fontSize:10, color:"var(--text-faint)", marginTop:3 }}>streak</div>
+            </div>
+            <div style={{ flex:1, background:"var(--badge-bg)", borderRadius:10, padding:"8px 10px", border:"1px solid var(--separator)" }}>
+              <div style={{ fontSize:20, fontWeight:800, color:"var(--text)", lineHeight:1 }}>{weekCount}<span style={{ fontSize:11, fontWeight:500, color:"var(--text-faint)" }}>/7</span></div>
+              <div style={{ fontSize:10, color:"var(--text-faint)", marginTop:3 }}>this week</div>
+            </div>
+          </div>
+          <button
+            onClick={function() { if (!loggedToday) onLog(habit.id, today); }}
+            disabled={loggedToday}
+            style={{ width:"100%", padding:"13px", borderRadius:14, background:loggedToday?habit.color+"22":habit.color, border:loggedToday?"1px solid "+habit.color+"55":"none", color:loggedToday?habit.color:"#fff", fontSize:14, fontWeight:700, cursor:loggedToday?"default":"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8, marginBottom:10, transition:"all 0.2s" }}>
+            {loggedToday ? (
+              <React.Fragment>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" style={{ stroke:habit.color }} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                Logged today
+              </React.Fragment>
+            ) : "Log today"}
+          </button>
+          <button onClick={function() { onLogPast(habit); }} style={{ background:"transparent", border:"none", color:"var(--text-faint)", fontSize:12, cursor:"pointer", padding:"2px 0", display:"block", width:"100%", textAlign:"center" }}>Manage sessions</button>
+        </div>
+      );
+    }
+
+    function LogPastSheet({ habit, sessions, onClose, onLog, onRemove }) {
+      const TODAY = getToday();
+      const mNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+      const startParts = habit.quitDate.split("-");
+      const startYear = parseInt(startParts[0]);
+      const startMonth = parseInt(startParts[1]) - 1;
+      const curYear = TODAY.getFullYear();
+      const curMonth = TODAY.getMonth();
+      const [viewYear, setViewYear] = useState(curYear);
+      const [viewMonth, setViewMonth] = useState(curMonth);
+      const habitSessions = sessions.filter(function(s) { return s.habitId === habit.id; });
+      const loggedSet = new Set(habitSessions.map(function(s) { return s.sessionDate; }));
+      const atStart = (viewYear === startYear && viewMonth === startMonth);
+      const atCurrent = (viewYear === curYear && viewMonth === curMonth);
+      const quitDate = parseDate(habit.quitDate);
+      function prevMonth() {
+        if (atStart) return;
+        if (viewMonth === 0) { setViewYear(viewYear - 1); setViewMonth(11); }
+        else setViewMonth(viewMonth - 1);
+      }
+      function nextMonth() {
+        if (atCurrent) return;
+        if (viewMonth === 11) { setViewYear(viewYear + 1); setViewMonth(0); }
+        else setViewMonth(viewMonth + 1);
+      }
+      const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+      const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+      const cells = [];
+      for (var i = 0; i < firstDay; i++) cells.push(null);
+      for (var d = 1; d <= daysInMonth; d++) cells.push(d);
+      function handleDayTap(day) {
+        var cellDate = new Date(viewYear, viewMonth, day);
+        var dateStr = viewYear + "-" + String(viewMonth + 1).padStart(2, "0") + "-" + String(day).padStart(2, "0");
+        if (cellDate < quitDate || cellDate >= TODAY) return;
+        if (loggedSet.has(dateStr)) { onRemove(habit.id, dateStr); }
+        else { onLog(habit.id, dateStr); }
+      }
+      return (
+        <div style={{ position:"absolute", inset:0, zIndex:100, display:"flex", flexDirection:"column", justifyContent:"flex-end" }}>
+          <div onClick={onClose} style={{ position:"absolute", inset:0, background:"var(--backdrop)", backdropFilter:"blur(4px)" }}/>
+          <div className="animate-sheetIn" style={{ position:"relative", background:"var(--bg-sheet)", borderRadius:"24px 24px 0 0", padding:"0 0 max(40px, env(safe-area-inset-bottom))", border:"1px solid var(--separator)", borderBottom:"none", zIndex:10, overflow:"hidden" }}>
+            <div style={{ display:"flex", justifyContent:"center", padding:"12px 0 18px" }}><div style={{ width:36, height:4, borderRadius:2, background:"var(--handle)" }}/></div>
+            <div style={{ padding:"0 20px 16px", display:"flex", alignItems:"center", gap:10 }}>
+              <div style={{ width:10, height:10, borderRadius:"50%", background:habit.color, flexShrink:0 }}/>
+              <div>
+                <div style={{ fontSize:18, fontWeight:700, color:"var(--text)" }}>Manage sessions</div>
+                <div style={{ fontSize:13, color:"var(--text-dim)", marginTop:2 }}>{habit.name} · tap to log or remove</div>
+              </div>
+            </div>
+            <div style={{ padding:"0 20px 20px" }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+                <button onClick={prevMonth} style={{ background:"transparent", border:"none", cursor:atStart?"default":"pointer", opacity:atStart?0.25:1, color:"var(--text)", fontSize:22, lineHeight:1, padding:"4px 10px" }}>&#8249;</button>
+                <span style={{ fontSize:15, fontWeight:700, color:"var(--text)" }}>{mNames[viewMonth]} {viewYear}</span>
+                <button onClick={nextMonth} style={{ background:"transparent", border:"none", cursor:atCurrent?"default":"pointer", opacity:atCurrent?0.25:1, color:"var(--text)", fontSize:22, lineHeight:1, padding:"4px 10px" }}>&#8250;</button>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", marginBottom:6 }}>
+                {["S","M","T","W","T","F","S"].map(function(dn,idx) { return <div key={idx} style={{ textAlign:"center", fontSize:10, fontWeight:600, color:"var(--text-muted)", padding:"2px 0" }}>{dn}</div>; })}
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:"4px 0" }}>
+                {cells.map(function(day, idx) {
+                  if (!day) return <div key={idx}/>;
+                  var cellDate = new Date(viewYear, viewMonth, day);
+                  var dateStr = viewYear + "-" + String(viewMonth+1).padStart(2,"0") + "-" + String(day).padStart(2,"0");
+                  var isLogged = loggedSet.has(dateStr);
+                  var isDisabled = cellDate < quitDate || cellDate >= TODAY;
+                  var isToday = (viewYear===TODAY.getFullYear()&&viewMonth===TODAY.getMonth()&&day===TODAY.getDate());
+                  return (
+                    <div key={idx} onClick={function() { handleDayTap(day); }} style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"3px 0", cursor:isDisabled?"default":"pointer" }}>
+                      <div style={{ width:30, height:30, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", background:isLogged?habit.color:(isToday?"var(--today-ring)":"transparent"), border:(isToday&&!isLogged)?"1px solid var(--today-ring)":"none", opacity:isDisabled?0.2:1, transition:"background 0.15s" }}>
+                        <span style={{ fontSize:12, fontWeight:(isLogged||isToday)?700:400, color:isLogged?"#fff":"var(--text)", pointerEvents:"none" }}>{day}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function SessionCalendarMonth({ year, month, habits, sessionsByHabit, headless }) {
+      const TODAY = getToday();
+      const mNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+      const daysInMonth = new Date(year, month+1, 0).getDate();
+      const firstDay = new Date(year, month, 1).getDay();
+      const cells = [];
+      for (let i = 0; i < firstDay; i++) cells.push(null);
+      for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+      const isToday = function(d) { return year===TODAY.getFullYear()&&month===TODAY.getMonth()&&d===TODAY.getDate(); };
+      const isFuture = function(d) { return new Date(year, month, d) > TODAY; };
+      const getSessionDots = function(d) {
+        const dateStr = year+"-"+String(month+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");
+        return habits.filter(function(h) { return sessionsByHabit[h.id] && sessionsByHabit[h.id].has(dateStr); });
+      };
+      return (
+        <div style={{ padding:headless?0:"16px 14px", background:headless?"transparent":"var(--cal-dim)", borderRadius:headless?0:18, border:headless?"none":"1px solid var(--cal-dim-border)" }}>
+          {!headless && <div style={{ fontSize:14, fontWeight:700, color:"var(--text)", marginBottom:14 }}>{mNames[month]} {year}</div>}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", marginBottom:6 }}>
+            {["S","M","T","W","T","F","S"].map(function(d,i) { return <div key={i} style={{ textAlign:"center", fontSize:10, fontWeight:600, color:"var(--text-muted)", padding:"2px 0" }}>{d}</div>; })}
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:"2px 0" }}>
+            {cells.map(function(d,i) {
+              if (!d) return <div key={i}/>;
+              const dots = getSessionDots(d);
+              const today = isToday(d);
+              const future = isFuture(d);
+              return (
+                <div key={i} style={{ display:"flex", flexDirection:"column", alignItems:"center", padding:"2px 0" }}>
+                  <div style={{ fontSize:11, fontWeight:today?700:400, color:future?"var(--future-text)":today?"var(--text)":"var(--text-sub)", width:22, height:22, display:"flex", alignItems:"center", justifyContent:"center", borderRadius:"50%", background:today?"var(--today-ring)":"transparent" }}>{d}</div>
+                  <div style={{ display:"flex", gap:2, minHeight:8, alignItems:"center", justifyContent:"center" }}>
+                    {dots.map(function(h) { return <div key={h.id} style={{ width:5, height:5, borderRadius:"50%", background:h.color, opacity:future?0.2:0.9 }}/>; })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    function SessionCollapsibleCalendar({ months, habits, sessionsByHabit }) {
+      const TODAY = getToday();
+      const curKey = TODAY.getFullYear()+"-"+TODAY.getMonth();
+      const init = {};
+      months.forEach(function(m) { init[m.year+"-"+m.month] = (m.year+"-"+m.month === curKey); });
+      const [open, setOpen] = useState(init);
+      const mNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+      return (
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          {months.map(function(m) {
+            const key = m.year+"-"+m.month; const isOpen = !!open[key]; const isCur = (key === curKey);
+            return (
+              <div key={key}>
+                <button onClick={function() { setOpen(function(p) { return {...p, [key]:!p[key]}; }); }} style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"11px 14px", borderRadius:isOpen?"14px 14px 0 0":14, background:isCur?"var(--cal-active)":"var(--cal-dim)", border:"1px solid "+(isCur?"var(--cal-active-border)":"var(--cal-dim-border)"), borderBottom:isOpen?"1px solid var(--cal-dim-border)":undefined, cursor:"pointer" }}>
+                  <span style={{ fontSize:13, fontWeight:isCur?700:600, color:isCur?"var(--text)":"var(--text-dim)" }}>{mNames[m.month]} {m.year}</span>
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    {isCur && <span style={{ fontSize:10, fontWeight:600, color:"var(--icon-dim)", textTransform:"uppercase" }}>Now</span>}
+                    <svg width="12" height="12" viewBox="0 0 12 12" style={{ transform:isOpen?"rotate(180deg)":"none", transition:"transform 0.2s" }}><path d="M2 4l4 4 4-4" style={{ stroke:"var(--icon-dim)" }} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
+                </button>
+                {isOpen && <div style={{ background:isCur?"var(--cal-open-bg)":"var(--cal-open-bg2)", borderRadius:"0 0 14px 14px", border:"1px solid "+(isCur?"var(--cal-open-border)":"var(--cal-open-border2)"), borderTop:"none", padding:"12px 14px" }}><SessionCalendarMonth year={m.year} month={m.month} habits={habits} sessionsByHabit={sessionsByHabit} headless={true}/></div>}
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    function SessionsScreen({ name, habits, sessions, sessionsLoaded, onAddHabit, onTapHabit, onLogSession, onLogPast }) {
+      const TODAY = getToday();
+      const earliest = habits.length ? habits.reduce(function(min,h) { const d=parseDate(h.quitDate); return d<min?d:min; }, TODAY) : TODAY;
+      const months = [];
+      let cur = new Date(earliest.getFullYear(), earliest.getMonth(), 1);
+      const end = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+      while (cur <= end) { months.push({ year:cur.getFullYear(), month:cur.getMonth() }); cur = new Date(cur.getFullYear(), cur.getMonth()+1, 1); }
+      const sessionsByHabit = {};
+      habits.forEach(function(h) { sessionsByHabit[h.id] = new Set(); });
+      sessions.forEach(function(s) { if (sessionsByHabit[s.habitId]) sessionsByHabit[s.habitId].add(s.sessionDate); });
+      if (!sessionsLoaded) {
+        return (
+          <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", background:"var(--bg)" }}>
+            <div style={{ width:36, height:36, borderRadius:"50%", border:"2.5px solid rgba(91,142,240,0.15)", borderTop:"2.5px solid #5B8EF0", animation:"spin 0.8s linear infinite" }}/>
+          </div>
+        );
+      }
+      return (
+        <div style={{ flex:1, overflowY:"auto", background:"var(--bg)", paddingTop:"env(safe-area-inset-top)", paddingBottom:"calc(60px + max(env(safe-area-inset-bottom), 24px))" }}>
+          <div style={{ padding:"18px 20px 16px" }}>
+            <div style={{ fontSize:11, fontWeight:600, letterSpacing:2, color:"var(--text-faint)", textTransform:"uppercase", marginBottom:4 }}>clean streak</div>
+            <div style={{ fontSize:22, fontWeight:700, color:"var(--text)" }}>{name ? "Hey "+name+" 👋" : "Your sessions"}</div>
+          </div>
+          {habits.length === 0 ? (
+            <div style={{ padding:"48px 24px", textAlign:"center" }}>
+              <div style={{ fontSize:40, marginBottom:16 }}>🌱</div>
+              <div style={{ fontSize:17, fontWeight:700, color:"var(--text)", marginBottom:8 }}>Nothing to track yet</div>
+              <div style={{ fontSize:14, color:"var(--text-dim)", lineHeight:1.6, marginBottom:28 }}>Add a habit you want to build — gym, reading, meditation, anything.</div>
+              <button onClick={onAddHabit} style={{ padding:"14px 28px", borderRadius:14, background:"linear-gradient(135deg, #5B8EF0 0%, #4DBF7A 100%)", border:"none", color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer" }}>Add your first habit</button>
+            </div>
+          ) : (
+            <React.Fragment>
+              <div style={{ padding:"0 16px 4px", display:"flex", flexDirection:"column", gap:12 }}>
+                {habits.map(function(h) { return <SessionCard key={h.id} habit={h} sessions={sessions} onLog={onLogSession} onLogPast={onLogPast} onTap={function() { onTapHabit(h); }}/>; })}
+              </div>
+              <div style={{ padding:"12px 16px 0" }}>
+                <button onClick={onAddHabit} style={{ width:"100%", padding:"12px", borderRadius:14, background:"var(--quote-bg)", border:"1px dashed var(--dashed-border)", color:"var(--dashed-color)", fontSize:13, fontWeight:500, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                  <span style={{ fontSize:16 }}>+</span> Track a new habit
+                </button>
+              </div>
+              <div style={{ padding:"20px 16px 0" }}>
+                <div style={{ display:"flex", gap:12, flexWrap:"wrap", padding:"0 2px 14px", alignItems:"center" }}>
+                  {habits.map(function(h) { return (
+                    <div key={h.id} style={{ display:"flex", alignItems:"center", gap:5 }}>
+                      <div style={{ width:7, height:7, borderRadius:"50%", background:h.color }}/>
+                      <span style={{ fontSize:11, color:"var(--text-dim)", fontWeight:500 }}>{h.name}</span>
+                    </div>
+                  ); })}
+                </div>
+                <SessionCollapsibleCalendar months={months} habits={habits} sessionsByHabit={sessionsByHabit}/>
+              </div>
+            </React.Fragment>
+          )}
+        </div>
+      );
+    }
+
     function App() {
       const [loading, setLoading]             = useState(true);
       const [userId,  setUserId]              = useState(null);
@@ -882,8 +1205,12 @@
       const [habits,  setHabits]              = useState([]);
       const [selectedHabit, setSelectedHabit] = useState(null);
       const [showNotif,    setShowNotif]      = useState(false);
-      const [showAddHabit, setShowAddHabit]   = useState(false);
+      const [addHabitType, setAddHabitType]   = useState(null);
       const [showAccount,  setShowAccount]    = useState(false);
+      const [showLogPast,  setShowLogPast]    = useState(null);
+      const [activeTab,    setActiveTab]      = useState("streaks");
+      const [sessions,     setSessions]       = useState([]);
+      const [sessionsLoaded, setSessionsLoaded] = useState(false);
       const [isDark, setIsDark] = useState(function() {
         try { return localStorage.getItem("theme") !== "light"; } catch(e) { return true; }
       });
@@ -895,8 +1222,9 @@
 
       function toggleTheme() { setIsDark(function(d) { return !d; }); }
 
-      useEffect(()=>{
+      useEffect(function() {
         async function init() {
+          if (!sb) { setLoading(false); setSessionsLoaded(true); return; }
           try {
             let { data: { session } } = await sb.auth.getSession();
             if (!session) { const { data } = await sb.auth.signInAnonymously(); session = data.session; }
@@ -908,7 +1236,7 @@
             if (profile && profile.name) setName(profile.name);
             if (profile && profile.onboarding_done) setScreen("dashboard");
             const { data: rows } = await sb.from("habits").select("*").eq("user_id", uid).order("created_at");
-            if (rows && rows.length) setHabits(rows.map(r=>({ id:r.id, name:r.name, color:r.color, quitDate:r.quit_date })));
+            if (rows && rows.length) setHabits(rows.map(function(r) { return { id:r.id, name:r.name, color:r.color, quitDate:r.quit_date, habitType:r.habit_type||"quit", previousQuitDate:r.previous_quit_date||null }; }));
             if (typeof Notification !== "undefined" && Notification.permission === "granted" && VAPID_PUB_KEY && VAPID_PUB_KEY.length > 50 && "serviceWorker" in navigator) {
               try {
                 const reg = await navigator.serviceWorker.ready;
@@ -922,7 +1250,8 @@
         init();
       }, []);
 
-      useEffect(() => {
+      useEffect(function() {
+        if (!sb) return;
         const { data: { subscription: authSub } } = sb.auth.onAuthStateChange(async function(event, session) {
           if (!session) return;
           if (event === "USER_UPDATED" && session.user.email) {
@@ -936,23 +1265,36 @@
             if (profile && profile.name) setName(profile.name);
             if (profile && profile.onboarding_done) setScreen("dashboard");
             const { data: rows } = await sb.from("habits").select("*").eq("user_id", uid).order("created_at");
-            if (rows && rows.length) setHabits(rows.map(function(r) { return { id:r.id, name:r.name, color:r.color, quitDate:r.quit_date }; }));
+            if (rows && rows.length) setHabits(rows.map(function(r) { return { id:r.id, name:r.name, color:r.color, quitDate:r.quit_date, habitType:r.habit_type||"quit", previousQuitDate:r.previous_quit_date||null }; }));
           }
         });
         return function() { authSub.unsubscribe(); };
       }, []);
 
+      useEffect(function() {
+        if (activeTab === "sessions" && !sessionsLoaded && userId) {
+          loadSessions(userId);
+        }
+      }, [activeTab, userId]);
+
+      async function loadSessions(uid) {
+        if (!uid) return;
+        const { data } = await sb.from("sessions").select("*").eq("user_id", uid);
+        setSessions((data||[]).map(function(r) { return { id:r.id, userId:r.user_id, habitId:r.habit_id, sessionDate:r.session_date }; }));
+        setSessionsLoaded(true);
+      }
+
       async function syncHabits(uid, newHabits) {
         if (!uid) return;
         const { data: existing } = await sb.from("habits").select("id").eq("user_id", uid);
-        const existingIds = (existing||[]).map(r=>r.id);
-        const toDelete = existingIds.filter(id=>!newHabits.map(h=>h.id).includes(id));
+        const existingIds = (existing||[]).map(function(r) { return r.id; });
+        const toDelete = existingIds.filter(function(id) { return !newHabits.map(function(h) { return h.id; }).includes(id); });
         if (toDelete.length) await sb.from("habits").delete().in("id", toDelete).eq("user_id", uid);
-        if (newHabits.length) await sb.from("habits").upsert(newHabits.map(h=>({ id:h.id, user_id:uid, name:h.name, color:h.color, quit_date:h.quitDate })), { onConflict:"id,user_id" });
+        if (newHabits.length) await sb.from("habits").upsert(newHabits.map(function(h) { return { id:h.id, user_id:uid, name:h.name, color:h.color, quit_date:h.quitDate, habit_type:h.habitType||"quit", previous_quit_date:h.previousQuitDate||null }; }), { onConflict:"id,user_id" });
       }
 
       async function handleOnboardingComplete(n, h) {
-        const newHabits = h.map((x,i)=>({...x, id:"h"+(Date.now()+i)}));
+        const newHabits = h.map(function(x,i) { return {...x, id:"h"+(Date.now()+i)}; });
         setName(n); setHabits(newHabits); setScreen("notif");
         if (userId) {
           await sb.from("user_profiles").upsert({ id:userId, name:n, onboarding_done:true });
@@ -960,36 +1302,72 @@
         }
       }
       async function handleHabitUpdate(updated) {
-        const newHabits = habits.map(h=>h.id===updated.id?updated:h);
+        const oldHabit = habits.find(function(h) { return h.id === updated.id; });
+        let final = updated;
+        if (oldHabit && updated.quitDate > oldHabit.quitDate) {
+          final = { ...updated, previousQuitDate: oldHabit.quitDate };
+        }
+        const newHabits = habits.map(function(h) { return h.id===final.id?final:h; });
         setHabits(newHabits);
         if (userId) await syncHabits(userId, newHabits);
       }
-      async function handleAddHabit({ name:n, color, quitDate }) {
-        const newHabit = { id:"h"+Date.now(), name:n, color, quitDate };
+      async function handleDeleteSession(habitId, dateStr) {
+        setSessions(function(prev) { return prev.filter(function(s) { return !(s.habitId===habitId && s.sessionDate===dateStr); }); });
+        if (userId && sb) {
+          await sb.from("sessions").delete().eq("user_id", userId).eq("habit_id", habitId).eq("session_date", dateStr);
+        }
+      }
+      async function handleAddHabit({ name:n, color, quitDate, habitType }) {
+        const newHabit = { id:"h"+Date.now(), name:n, color, quitDate, habitType:habitType||"quit" };
         const newHabits = [...habits, newHabit];
         setHabits(newHabits);
         if (userId) await syncHabits(userId, newHabits);
       }
       async function handleDeleteHabit(id) {
-        const newHabits = habits.filter(h=>h.id!==id);
+        const newHabits = habits.filter(function(h) { return h.id!==id; });
         setHabits(newHabits);
-        if (userId) await syncHabits(userId, newHabits);
+        setSessions(function(prev) { return prev.filter(function(s) { return s.habitId!==id; }); });
+        if (userId) {
+          await syncHabits(userId, newHabits);
+          await sb.from("sessions").delete().eq("habit_id", id).eq("user_id", userId);
+        }
+      }
+      async function handleLogSession(habitId, dateStr) {
+        if (sessions.some(function(s) { return s.habitId===habitId && s.sessionDate===dateStr; })) return;
+        const tempId = "tmp-"+Date.now();
+        const tempSession = { id:tempId, userId, habitId, sessionDate:dateStr };
+        setSessions(function(prev) { return [...prev, tempSession]; });
+        if (userId) {
+          const { data } = await sb.from("sessions").upsert({ user_id:userId, habit_id:habitId, session_date:dateStr }, { onConflict:"user_id,habit_id,session_date" }).select().single();
+          if (data) {
+            setSessions(function(prev) { return prev.map(function(s) { return s.id===tempId ? { id:data.id, userId:data.user_id, habitId:data.habit_id, sessionDate:data.session_date } : s; }); });
+          }
+        }
       }
 
       if (loading) return <LoadingScreen/>;
 
-      if (showNotif) return <NotifScreen onAllow={()=>setShowNotif(false)} onSkip={()=>setShowNotif(false)} userId={userId}/>;
       if (screen==="onboarding") return <OnboardingScreen onComplete={handleOnboardingComplete}/>;
-      if (screen==="notif") return <NotifScreen onAllow={()=>setScreen("dashboard")} onSkip={()=>setScreen("dashboard")} userId={userId}/>;
+      if (screen==="notif") return <NotifScreen onAllow={function() { setScreen("dashboard"); }} onSkip={function() { setScreen("dashboard"); }} userId={userId}/>;
+      if (showNotif) return <NotifScreen onAllow={function() { setShowNotif(false); }} onSkip={function() { setShowNotif(false); }} userId={userId}/>;
+
+      const quitHabits = habits.filter(function(h) { return (h.habitType||"quit") === "quit"; });
+      const buildHabits = habits.filter(function(h) { return h.habitType === "build"; });
 
       return (
         <div style={{ height:"100%", display:"flex", flexDirection:"column", background:"var(--bg)", overflow:"hidden" }}>
           <div style={{ flex:1, position:"relative", display:"flex", flexDirection:"column", overflow:"hidden" }}>
-            <DashboardScreen name={name} habits={habits} onTapHabit={h=>setSelectedHabit(h)} onOpenNotif={()=>setShowNotif(true)} onAddHabit={()=>setShowAddHabit(true)} onOpenAccount={()=>setShowAccount(true)} onToggleTheme={toggleTheme} isDark={isDark} userId={userId}/>
-            {selectedHabit && <EditSheet habit={selectedHabit} onClose={()=>setSelectedHabit(null)} onUpdate={handleHabitUpdate} onDelete={handleDeleteHabit}/>}
-            {showAddHabit && <AddHabitSheet onClose={()=>setShowAddHabit(false)} onAdd={handleAddHabit} existingCount={habits.length}/>}
-            {showAccount && <AccountSheet onClose={()=>setShowAccount(false)} userId={userId} userEmail={userEmail}/>}
+            {activeTab === "streaks" ? (
+              <DashboardScreen name={name} habits={quitHabits} onTapHabit={function(h) { setSelectedHabit(h); }} onOpenNotif={function() { setShowNotif(true); }} onAddHabit={function() { setAddHabitType("quit"); }} onOpenAccount={function() { setShowAccount(true); }} onToggleTheme={toggleTheme} isDark={isDark} userId={userId}/>
+            ) : (
+              <SessionsScreen name={name} habits={buildHabits} sessions={sessions} sessionsLoaded={sessionsLoaded} onAddHabit={function() { setAddHabitType("build"); }} onTapHabit={function(h) { setSelectedHabit(h); }} onLogSession={handleLogSession} onLogPast={function(h) { setShowLogPast(h); }}/>
+            )}
+            {selectedHabit && <EditSheet habit={selectedHabit} onClose={function() { setSelectedHabit(null); }} onUpdate={handleHabitUpdate} onDelete={handleDeleteHabit}/>}
+            {addHabitType && <AddHabitSheet onClose={function() { setAddHabitType(null); }} onAdd={handleAddHabit} existingCount={habits.length} defaultType={addHabitType}/>}
+            {showAccount && <AccountSheet onClose={function() { setShowAccount(false); }} userId={userId} userEmail={userEmail}/>}
+            {showLogPast && <LogPastSheet habit={showLogPast} sessions={sessions} onClose={function() { setShowLogPast(null); }} onLog={handleLogSession} onRemove={handleDeleteSession}/>}
           </div>
+          <BottomNav activeTab={activeTab} onSwitch={function(tab) { setActiveTab(tab); }}/>
         </div>
       );
     }

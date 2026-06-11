@@ -47,9 +47,9 @@ self.addEventListener('push', e => {
       body: data.body,
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
-      tag: 'clean-streak-daily',
+      tag: data.tag || 'clean-streak-daily',
       renotify: true,
-      data: { url: '/' }
+      data: { url: data.url || '/' }
     })
   );
 });
@@ -57,11 +57,15 @@ self.addEventListener('push', e => {
 // Notification click: open app
 self.addEventListener('notificationclick', e => {
   e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || '/';
   e.waitUntil(
     clients.matchAll({ type: 'window' }).then(list => {
-      const existing = list.find(c => c.url === '/' && 'focus' in c);
-      if (existing) return existing.focus();
-      return clients.openWindow('/');
+      const existing = list.find(c => 'focus' in c);
+      if (existing) {
+        if ('navigate' in existing) return existing.navigate(url).then(c => c && c.focus());
+        return existing.focus();
+      }
+      return clients.openWindow(url);
     })
   );
 });

@@ -675,7 +675,7 @@
       const end = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
       while(cur<=end) { months.push({ year:cur.getFullYear(), month:cur.getMonth() }); cur=new Date(cur.getFullYear(), cur.getMonth()+1, 1); }
       return (
-        <div style={{ flex:1, overflowY:"auto", background:"var(--bg)", paddingTop:"env(safe-area-inset-top)", paddingBottom:"calc(60px + max(env(safe-area-inset-bottom), 24px))" }}>
+        <div style={{ flex:1, overflowY:"auto", background:"var(--bg)", paddingTop:"env(safe-area-inset-top)", paddingBottom:24 }}>
           <div style={{ padding:"18px 20px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
             <div>
               <div style={{ fontSize:11, fontWeight:600, letterSpacing:2, color:"var(--text-faint)", textTransform:"uppercase", marginBottom:4 }}>clean streak</div>
@@ -926,7 +926,7 @@
       const streakColor = streaksActive ? "var(--text)" : "var(--icon)";
       const sessionColor = sessionsActive ? "var(--text)" : "var(--icon)";
       return (
-        <div style={{ background:"var(--bg-sheet)", borderTop:"1px solid var(--separator)", display:"flex", paddingBottom:"env(safe-area-inset-bottom)", flexShrink:0, zIndex:50 }}>
+        <div style={{ background:"var(--bg-sheet)", borderTop:"1px solid var(--separator)", display:"flex", paddingBottom:"max(calc(env(safe-area-inset-bottom) - 16px), 0px)", flexShrink:0, zIndex:50 }}>
           <NavTab id="streaks" label="Streaks" activeTab={activeTab} onSwitch={onSwitch}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" style={{ stroke:streakColor, fill:streaksActive?"var(--text)":"none" }} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
@@ -1072,6 +1072,51 @@
       );
     }
 
+    function CheckinSheet({ habits, sessions, targetDate, onLog, onClose }) {
+      const isToday = targetDate === formatDate(getToday());
+      const dayWord = isToday ? "today" : "yesterday";
+      const [answers, setAnswers] = useState(function() {
+        const init = {};
+        habits.forEach(function(h) {
+          if (sessions.some(function(s) { return s.habitId === h.id && s.sessionDate === targetDate; })) init[h.id] = "yes";
+        });
+        return init;
+      });
+      const allAnswered = habits.every(function(h) { return answers[h.id]; });
+      function answer(habit, val) {
+        setAnswers(function(prev) { const next = { ...prev }; next[habit.id] = val; return next; });
+        if (val === "yes") onLog(habit.id, targetDate);
+      }
+      return (
+        <div style={{ position:"absolute", inset:0, zIndex:100, display:"flex", flexDirection:"column", justifyContent:"flex-end" }}>
+          <div onClick={onClose} style={{ position:"absolute", inset:0, background:"var(--backdrop)", backdropFilter:"blur(4px)" }}/>
+          <div className="animate-sheetIn" style={{ position:"relative", background:"var(--bg-sheet)", borderRadius:"24px 24px 0 0", padding:"0 0 max(40px, env(safe-area-inset-bottom))", border:"1px solid var(--separator)", borderBottom:"none", zIndex:10, overflow:"hidden" }}>
+            <div style={{ display:"flex", justifyContent:"center", padding:"12px 0 18px" }}><div style={{ width:36, height:4, borderRadius:2, background:"var(--handle)" }}/></div>
+            <div style={{ padding:"0 20px 18px" }}>
+              <div style={{ fontSize:18, fontWeight:700, color:"var(--text)" }}>Daily check-in</div>
+              <div style={{ fontSize:13, color:"var(--text-dim)", marginTop:2 }}>Did you do these {dayWord}? · {humanDate(targetDate)}</div>
+            </div>
+            <div style={{ padding:"0 20px", display:"flex", flexDirection:"column", gap:10 }}>
+              {habits.map(function(h) {
+                const ans = answers[h.id];
+                return (
+                  <div key={h.id} style={{ display:"flex", alignItems:"center", gap:10, background:"var(--card)", border:"1px solid var(--card-border)", borderRadius:14, padding:"12px 14px" }}>
+                    <div style={{ width:8, height:8, borderRadius:"50%", background:h.color, flexShrink:0 }}/>
+                    <span style={{ flex:1, fontSize:14, fontWeight:600, color:"var(--text)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{h.name}</span>
+                    <button onClick={function() { answer(h, "yes"); }} style={{ padding:"8px 16px", borderRadius:10, background:ans==="yes"?h.color:"var(--input-bg)", border:"1px solid "+(ans==="yes"?h.color:"var(--input-border)"), color:ans==="yes"?"#fff":"var(--text-sub)", fontSize:13, fontWeight:700, cursor:"pointer" }}>Yes</button>
+                    <button onClick={function() { answer(h, "no"); }} style={{ padding:"8px 16px", borderRadius:10, background:ans==="no"?"var(--overlay)":"var(--input-bg)", border:"1px solid "+(ans==="no"?"var(--text-faint)":"var(--input-border)"), color:ans==="no"?"var(--text)":"var(--text-sub)", fontSize:13, fontWeight:ans==="no"?700:500, cursor:"pointer" }}>No</button>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ padding:"20px 20px 0" }}>
+              <button onClick={onClose} style={{ width:"100%", padding:"14px", borderRadius:14, background:allAnswered?"linear-gradient(135deg, #5B8EF0 0%, #4DBF7A 100%)":"var(--overlay)", border:"none", color:allAnswered?"#fff":"var(--text-sub)", fontSize:15, fontWeight:700, cursor:"pointer" }}>Done</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     function SessionCalendarMonth({ year, month, habits, sessionsByHabit, headless }) {
       const TODAY = getToday();
       const mNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -1140,7 +1185,7 @@
       );
     }
 
-    function SessionsScreen({ name, habits, sessions, sessionsLoaded, onAddHabit, onTapHabit, onLogSession, onLogPast }) {
+    function SessionsScreen({ name, habits, sessions, sessionsLoaded, onAddHabit, onTapHabit, onLogSession, onLogPast, reminderPref, onReminderChange }) {
       const TODAY = getToday();
       const earliest = habits.length ? habits.reduce(function(min,h) { const d=parseDate(h.quitDate); return d<min?d:min; }, TODAY) : TODAY;
       const months = [];
@@ -1158,7 +1203,7 @@
         );
       }
       return (
-        <div style={{ flex:1, overflowY:"auto", background:"var(--bg)", paddingTop:"env(safe-area-inset-top)", paddingBottom:"calc(60px + max(env(safe-area-inset-bottom), 24px))" }}>
+        <div style={{ flex:1, overflowY:"auto", background:"var(--bg)", paddingTop:"env(safe-area-inset-top)", paddingBottom:24 }}>
           <div style={{ padding:"18px 20px 16px" }}>
             <div style={{ fontSize:11, fontWeight:600, letterSpacing:2, color:"var(--text-faint)", textTransform:"uppercase", marginBottom:4 }}>clean streak</div>
             <div style={{ fontSize:22, fontWeight:700, color:"var(--text)" }}>{name ? "Hey "+name+" 👋" : "Your sessions"}</div>
@@ -1191,6 +1236,16 @@
                 </div>
                 <SessionCollapsibleCalendar months={months} habits={habits} sessionsByHabit={sessionsByHabit}/>
               </div>
+              <div style={{ padding:"24px 16px 0" }}>
+                <div style={{ fontSize:11, fontWeight:600, letterSpacing:1.2, color:"var(--text-faint)", textTransform:"uppercase", marginBottom:8 }}>Daily check-in reminder</div>
+                <div style={{ display:"flex", borderRadius:12, overflow:"hidden", border:"1px solid var(--separator)" }}>
+                  {[["night","Night"],["morning","Morning"],["off","Off"]].map(function(opt) {
+                    const active = reminderPref === opt[0];
+                    return <button key={opt[0]} onClick={function() { onReminderChange(opt[0]); }} style={{ flex:1, padding:"10px", background:active?"var(--overlay)":"transparent", border:"none", color:active?"var(--text)":"var(--icon)", fontSize:13, fontWeight:active?700:500, cursor:"pointer" }}>{opt[1]}</button>;
+                  })}
+                </div>
+                <div style={{ fontSize:11, color:"var(--text-faint)", marginTop:8, lineHeight:1.5 }}>{reminderPref==="off" ? "No reminders. You can still log sessions anytime." : reminderPref==="morning" ? "A morning notification asks about yesterday's sessions." : "A night notification asks about today's sessions."}</div>
+              </div>
             </React.Fragment>
           )}
         </div>
@@ -1212,9 +1267,14 @@
       const [activeTab,    setActiveTab]      = useState("streaks");
       const [sessions,     setSessions]       = useState([]);
       const [sessionsLoaded, setSessionsLoaded] = useState(false);
+      const [showCheckin,  setShowCheckin]    = useState(null);
+      const [reminderPref, setReminderPref]   = useState(function() {
+        try { return localStorage.getItem("session_reminder") || "night"; } catch(e) { return "night"; }
+      });
       const [isDark, setIsDark] = useState(function() {
         try { return localStorage.getItem("theme") !== "light"; } catch(e) { return true; }
       });
+      const checkinForced = React.useRef(window.location.search.indexOf("checkin=1") !== -1);
       const touchStartX = React.useRef(0);
       const touchStartY = React.useRef(0);
       function handleTouchStart(e) {
@@ -1250,6 +1310,10 @@
             const { data: profile } = await sb.from("user_profiles").select("*").eq("id", uid).maybeSingle();
             if (profile && profile.name) setName(profile.name);
             if (profile && profile.onboarding_done) setScreen("dashboard");
+            if (profile && profile.session_reminder) {
+              setReminderPref(profile.session_reminder);
+              try { localStorage.setItem("session_reminder", profile.session_reminder); } catch(e) {}
+            }
             const { data: rows } = await sb.from("habits").select("*").eq("user_id", uid).order("created_at");
             if (rows && rows.length) setHabits(rows.map(function(r) { return { id:r.id, name:r.name, color:r.color, quitDate:r.quit_date, habitType:r.habit_type||"quit", previousQuitDate:r.previous_quit_date||null }; }));
             if (typeof Notification !== "undefined" && Notification.permission === "granted" && VAPID_PUB_KEY && VAPID_PUB_KEY.length > 50 && "serviceWorker" in navigator) {
@@ -1291,6 +1355,31 @@
           loadSessions(userId);
         }
       }, [activeTab, userId]);
+
+      useEffect(function() {
+        if (screen !== "dashboard" || !userId || showCheckin) return;
+        const builds = habits.filter(function(h) { return h.habitType === "build"; });
+        if (!builds.length || reminderPref === "off") return;
+        const target = reminderPref === "morning" ? formatDate(new Date(getToday().getTime() - 86400000)) : formatDate(getToday());
+        if (!checkinForced.current) {
+          try { if (localStorage.getItem("checkin_done_" + target)) return; } catch(e) {}
+        }
+        if (!sessionsLoaded) { loadSessions(userId); return; }
+        if (!checkinForced.current) {
+          const allLogged = builds.every(function(b) { return sessions.some(function(s) { return s.habitId === b.id && s.sessionDate === target; }); });
+          if (allLogged) return;
+        }
+        checkinForced.current = false;
+        try { window.history.replaceState(null, "", window.location.pathname); } catch(e) {}
+        setActiveTab("sessions");
+        setShowCheckin(target);
+      }, [screen, userId, habits, reminderPref, sessionsLoaded]);
+
+      async function handleReminderChange(pref) {
+        setReminderPref(pref);
+        try { localStorage.setItem("session_reminder", pref); } catch(e) {}
+        if (userId && sb) await sb.from("user_profiles").upsert({ id: userId, session_reminder: pref });
+      }
 
       async function loadSessions(uid) {
         if (!uid) return;
@@ -1375,12 +1464,13 @@
             {activeTab === "streaks" ? (
               <DashboardScreen name={name} habits={quitHabits} onTapHabit={function(h) { setSelectedHabit(h); }} onOpenNotif={function() { setShowNotif(true); }} onAddHabit={function() { setAddHabitType("quit"); }} onOpenAccount={function() { setShowAccount(true); }} onToggleTheme={toggleTheme} isDark={isDark} userId={userId}/>
             ) : (
-              <SessionsScreen name={name} habits={buildHabits} sessions={sessions} sessionsLoaded={sessionsLoaded} onAddHabit={function() { setAddHabitType("build"); }} onTapHabit={function(h) { setSelectedHabit(h); }} onLogSession={handleLogSession} onLogPast={function(h) { setShowLogPast(h); }}/>
+              <SessionsScreen name={name} habits={buildHabits} sessions={sessions} sessionsLoaded={sessionsLoaded} onAddHabit={function() { setAddHabitType("build"); }} onTapHabit={function(h) { setSelectedHabit(h); }} onLogSession={handleLogSession} onLogPast={function(h) { setShowLogPast(h); }} reminderPref={reminderPref} onReminderChange={handleReminderChange}/>
             )}
             {selectedHabit && <EditSheet habit={selectedHabit} onClose={function() { setSelectedHabit(null); }} onUpdate={handleHabitUpdate} onDelete={handleDeleteHabit}/>}
             {addHabitType && <AddHabitSheet onClose={function() { setAddHabitType(null); }} onAdd={handleAddHabit} existingCount={habits.length} defaultType={addHabitType}/>}
             {showAccount && <AccountSheet onClose={function() { setShowAccount(false); }} userId={userId} userEmail={userEmail}/>}
             {showLogPast && <LogPastSheet habit={showLogPast} sessions={sessions} onClose={function() { setShowLogPast(null); }} onLog={handleLogSession} onRemove={handleDeleteSession}/>}
+            {showCheckin && <CheckinSheet habits={buildHabits} sessions={sessions} targetDate={showCheckin} onLog={handleLogSession} onClose={function() { try { localStorage.setItem("checkin_done_" + showCheckin, "1"); } catch(e) {} setShowCheckin(null); }}/>}
           </div>
           <BottomNav activeTab={activeTab} onSwitch={function(tab) { setActiveTab(tab); }}/>
         </div>
